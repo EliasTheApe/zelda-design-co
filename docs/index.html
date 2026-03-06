@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zelda Design Co. Collage</title>
 <style>
-:root{--canvas-w:1440px;--canvas-h:3900px}*{box-sizing:border-box}body{margin:0;background:#111;display:flex;justify-content:center;padding:24px 0;font-family:Georgia,serif}.canvas{position:relative;width:var(--canvas-w);height:var(--canvas-h);overflow:hidden;background:#f7f3ec;box-shadow:0 24px 70px rgba(0,0,0,.35)}.section{position:absolute;left:0;width:100%}.layer{position:absolute;height:auto;transform-origin:center center;user-select:none;-webkit-user-drag:none}.layer:not(.text-layer){box-shadow:8px 14px 24px rgba(0,0,0,.35)}.text-layer{white-space:pre-wrap;text-wrap:balance}@media (max-width:1500px){.canvas{width:min(96vw,var(--canvas-w));height:auto;aspect-ratio:1440/3900}}</style>
+:root{--canvas-w:1440px;--canvas-h:3900px}*{box-sizing:border-box}body{margin:0;background:#111;padding:12px 0 16px;font-family:Georgia,serif}.viewport{width:min(100vw,calc(var(--canvas-w) + 24px));margin:0 auto;padding:12px;overflow:hidden}.canvas-frame{position:relative;width:100%;max-width:var(--canvas-w);margin:0 auto;height:var(--canvas-h)}.canvas{position:relative;width:var(--canvas-w);height:var(--canvas-h);overflow:hidden;background:#f7f3ec;box-shadow:0 24px 70px rgba(0,0,0,.35);transform-origin:top left}.section{position:absolute;left:0;width:100%}.layer{position:absolute;height:auto;transform-origin:center center;user-select:none;-webkit-user-drag:none}.layer:not(.text-layer){box-shadow:8px 14px 24px rgba(0,0,0,.35)}.text-layer{white-space:pre-wrap;text-wrap:balance}</style>
 </head>
 <body>
-<main class="canvas">
+<div class="viewport">
+  <main class="canvas-frame" id="canvas-frame">
+    <div class="canvas" id="canvas">
     <div class="section" style="top:0px;height:880px;background:#fdfaf5;"></div>
     <div class="section" style="top:880px;height:820px;background:#171410;"></div>
     <div class="section" style="top:1700px;height:620px;background:#fdfaf5;"></div>
@@ -44,6 +46,11 @@
     <img class="layer" src="assets/originals/map.jpg" alt="map.jpg" style="left:1146px;top:697px;width:223px;transform:rotate(9.9deg);z-index:133;">
     <img class="layer" src="assets/originals/psych_wall.jpg" alt="psych_wall.jpg" style="left:-25px;top:1908px;width:280px;transform:rotate(46.9deg);z-index:136;">
     <img class="layer" src="assets/originals/scribble_impressionist_interior.jpg" alt="scribble_impressionist_interior.jpg" style="left:-48px;top:3585px;width:280px;transform:rotate(-1deg);z-index:137;">
-</main>
+    </div>
+  </main>
+</div>
+<script>
+(function(){var frame=document.getElementById("canvas-frame");var canvas=document.getElementById("canvas");var baseW=1440;var baseH=3900;function fit(){var scale=Math.min(1,frame.clientWidth/baseW);frame.style.height=(baseH*scale)+"px";canvas.style.transform="scale("+scale+")";}window.addEventListener("resize",fit,{passive:true});fit();})();
+</script>
 </body>
 </html>
