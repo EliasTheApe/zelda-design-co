@@ -1,0 +1,1316 @@
+// ============================================================
+// CONTROLNET.DL
+// Interior Designer Landing Page — Layout Blueprint v1.0
+//
+// Coordinate system
+// ─────────────────
+//   x, w  → % of viewport width   (float; 0.0=left edge, 100.0=right edge;
+//                                   values >100 or <0 = intentional off-page bleed)
+//   y, h  → px from page top      (float; absolute scroll-space)
+//   rot   → degrees               (float; CW positive, CCW negative)
+//   z     → z-index layer         (number; higher = in front)
+//   alpha → opacity               (float; 0.0=invisible, 1.0=opaque)
+//   dur   → milliseconds          (float)
+//   spd   → parallax speed factor (float; 0.0=fixed, 1.0=normal, <1=floats up)
+//
+// Baseline viewport  : 1440 × 900 px  (desktop)
+// Total scroll height: 3700 px        ≈ 4.1 × viewport height
+//
+// Section y-ranges (approx)
+//   HOME          y    0 –  900
+//   ABOUT         y  900 – 1500
+//   SERVICES      y 1500 – 2100
+//   PROCESS       y 2100 – 2660
+//   PROJECTS      y 2660 – 3060
+//   TESTIMONIALS  y 3060 – 3260
+//   CONTACT       y 3260 – 3500
+//   FOOTER        y 3500 – 3700
+// ============================================================
+
+
+// ────────────────────────────────────────────────────────────
+// TYPES
+// ────────────────────────────────────────────────────────────
+
+.type EID     <: symbol   // element identifier
+.type SID     <: symbol   // section identifier
+.type Easing  <: symbol   // "ease" | "ease-in" | "ease-out" | "ease-in-out" | "linear"
+.type Axis    <: symbol   // "x" | "y" | "rot"
+.type Action  <: symbol   // on_click target
+
+
+// ────────────────────────────────────────────────────────────
+// SCHEMA — STRUCTURAL
+// ────────────────────────────────────────────────────────────
+
+// Every element with its semantic kind
+// kind: nav | hero | section | text | image | button | rule | icon |
+//       menu_item | footer_link | social_link | footer | overlay
+.decl element(id: EID, kind: symbol)
+
+// Logical sections (scroll anchors)
+.decl section(id: SID, label: symbol, anchor_y: float)
+
+// Element → section membership
+.decl in_section(eid: EID, sid: SID)
+
+// Position: top-left corner of element bounding box in scroll-space
+.decl pos(id: EID, x: float, y: float)
+
+// Size
+.decl size(id: EID, w: float, h: float)
+
+// CSS transform: rotation about anchor point
+.decl rotation(id: EID, deg: float)
+
+// Transform-origin as % within element  (0,0=top-left  50,50=center  100,100=bottom-right)
+.decl anchor(id: EID, ax: float, ay: float)
+
+// Z-index layer
+.decl layer(id: EID, z: number)
+
+// Opacity (only declare when ≠ 1.0)
+.decl opacity(id: EID, alpha: float)
+
+// Sticky: element is position:sticky, sticks at `top_offset` px from viewport top
+.decl sticky(id: EID, top_offset: float)
+
+// Parent-child containment (layout grouping; child coords are in parent scroll-space)
+.decl contains(parent: EID, child: EID)
+
+
+// ────────────────────────────────────────────────────────────
+// SCHEMA — INTERACTIONS
+// ────────────────────────────────────────────────────────────
+
+// Hover: translate (dx in vw%, dy in px)
+.decl hover_translate(id: EID, dx: float, dy: float, dur: float, ease: Easing)
+
+// Hover: rotation delta in degrees
+.decl hover_rotate(id: EID, delta_deg: float, dur: float, ease: Easing)
+
+// Hover: scale (sx, sy as multipliers; 1.0 = no change)
+.decl hover_scale(id: EID, sx: float, sy: float, dur: float, ease: Easing)
+
+// Hover: opacity target (to_alpha)
+.decl hover_opacity(id: EID, to_alpha: float, dur: float, ease: Easing)
+
+// Hover jiggle: oscillates on axis; amplitude in px (x/y) or deg (rot); freq in Hz
+.decl hover_jiggle(id: EID, axis: Axis, amplitude: float, freq: float)
+
+// Scroll parallax: element moves at spd × scroll speed
+.decl parallax(id: EID, spd: float)
+
+// Scroll-triggered fade-in: fires when `threshold` fraction of element is visible
+.decl scroll_fade_in(id: EID, threshold: float, dur: float, ease: Easing)
+
+// Scroll-triggered slide-in: element translates from (from_dx vw%, from_dy px) to rest pos
+.decl scroll_slide_in(id: EID, from_dx: float, from_dy: float, threshold: float, dur: float, ease: Easing)
+
+// Magnetic cursor: element drifts toward cursor within max_dist px, strength 0–1
+.decl magnetic(id: EID, strength: float, max_dist: float)
+
+// Click action
+.decl on_click(id: EID, action: Action)
+
+
+// ────────────────────────────────────────────────────────────
+// CANVAS CONSTANTS
+// ────────────────────────────────────────────────────────────
+
+.decl viewport(w: float, h: float)
+viewport(1440.0, 900.0).
+
+.decl scroll_height(h: float)
+scroll_height(3700.0).
+
+
+// ════════════════════════════════════════════════════════════
+// SECTIONS
+// ════════════════════════════════════════════════════════════
+
+section("sec_home",         "HOME",         0.0).
+section("sec_about",        "ABOUT",        900.0).
+section("sec_services",     "SERVICES",     1500.0).
+section("sec_process",      "PROCESS",      2100.0).
+section("sec_projects",     "PROJECTS",     2660.0).
+section("sec_testimonials", "TESTIMONIALS", 3060.0).
+section("sec_contact",      "CONTACT",      3260.0).
+section("sec_footer",       "FOOTER",       3500.0).
+
+
+// ════════════════════════════════════════════════════════════
+// NAV BAR   (sticky, always on top)
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐  y=0
+//  │ [LOGO]      HOME  ABOUT  SERVICES  PROCESS  PROJECTS    │  h=72
+//  │                          TESTIMONIALS          CONTACT  │
+//  └─────────────────────────────────────────────────────────┘
+
+element("nav_bar",               "nav").
+element("nav_logo",              "text").
+element("nav_menu",              "nav").
+element("nav_item_home",         "menu_item").
+element("nav_item_about",        "menu_item").
+element("nav_item_services",     "menu_item").
+element("nav_item_process",      "menu_item").
+element("nav_item_projects",     "menu_item").
+element("nav_item_testimonials", "menu_item").
+element("nav_item_contact",      "menu_item").
+
+// nav_bar: full-width, 72px, sticky at viewport top
+pos("nav_bar",   0.0,  0.0).  size("nav_bar",  100.0,  72.0).
+layer("nav_bar", 100).         rotation("nav_bar",   0.0).
+anchor("nav_bar", 0.0, 0.0).   opacity("nav_bar", 0.97).
+sticky("nav_bar", 0.0).
+
+// nav_logo: left-aligned, vertically centered
+pos("nav_logo",   3.5, 16.0).  size("nav_logo",  14.0,  40.0).
+layer("nav_logo", 101).         rotation("nav_logo",  0.0).
+anchor("nav_logo", 0.0, 0.5).
+
+// nav_menu: right block container
+pos("nav_menu",   35.0, 20.0). size("nav_menu",  62.0,  32.0).
+layer("nav_menu", 101).         rotation("nav_menu",  0.0).
+anchor("nav_menu", 0.0, 0.5).
+
+// Menu items — x positions evenly distributed across nav_menu right zone
+pos("nav_item_home",         36.0, 24.0).  size("nav_item_home",          6.0, 24.0).
+pos("nav_item_about",        44.0, 24.0).  size("nav_item_about",          6.0, 24.0).
+pos("nav_item_services",     52.0, 24.0).  size("nav_item_services",       7.5, 24.0).
+pos("nav_item_process",      61.0, 24.0).  size("nav_item_process",        7.0, 24.0).
+pos("nav_item_projects",     69.5, 24.0).  size("nav_item_projects",       7.0, 24.0).
+pos("nav_item_testimonials", 78.0, 24.0).  size("nav_item_testimonials",  10.5, 24.0).
+pos("nav_item_contact",      90.5, 24.0).  size("nav_item_contact",        6.5, 24.0).
+
+layer("nav_item_home", 102).         rotation("nav_item_home", 0.0).         anchor("nav_item_home", 0.5, 0.5).
+layer("nav_item_about", 102).        rotation("nav_item_about", 0.0).        anchor("nav_item_about", 0.5, 0.5).
+layer("nav_item_services", 102).     rotation("nav_item_services", 0.0).     anchor("nav_item_services", 0.5, 0.5).
+layer("nav_item_process", 102).      rotation("nav_item_process", 0.0).      anchor("nav_item_process", 0.5, 0.5).
+layer("nav_item_projects", 102).     rotation("nav_item_projects", 0.0).     anchor("nav_item_projects", 0.5, 0.5).
+layer("nav_item_testimonials", 102). rotation("nav_item_testimonials", 0.0). anchor("nav_item_testimonials", 0.5, 0.5).
+layer("nav_item_contact", 102).      rotation("nav_item_contact", 0.0).      anchor("nav_item_contact", 0.5, 0.5).
+
+// Hover: subtle upward nudge
+hover_translate("nav_item_home",         0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_about",        0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_services",     0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_process",      0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_projects",     0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_testimonials", 0.0, -3.0, 180.0, "ease-out").
+hover_translate("nav_item_contact",      0.0, -3.0, 180.0, "ease-out").
+
+// Click → scroll to section
+on_click("nav_item_home",         "scroll_to:sec_home").
+on_click("nav_item_about",        "scroll_to:sec_about").
+on_click("nav_item_services",     "scroll_to:sec_services").
+on_click("nav_item_process",      "scroll_to:sec_process").
+on_click("nav_item_projects",     "scroll_to:sec_projects").
+on_click("nav_item_testimonials", "scroll_to:sec_testimonials").
+on_click("nav_item_contact",      "scroll_to:sec_contact").
+
+// Containment
+contains("nav_bar",  "nav_logo").
+contains("nav_bar",  "nav_menu").
+contains("nav_menu", "nav_item_home").
+contains("nav_menu", "nav_item_about").
+contains("nav_menu", "nav_item_services").
+contains("nav_menu", "nav_item_process").
+contains("nav_menu", "nav_item_projects").
+contains("nav_menu", "nav_item_testimonials").
+contains("nav_menu", "nav_item_contact").
+
+in_section("nav_bar",               "sec_home").
+in_section("nav_logo",              "sec_home").
+in_section("nav_menu",              "sec_home").
+in_section("nav_item_home",         "sec_home").
+in_section("nav_item_about",        "sec_home").
+in_section("nav_item_services",     "sec_home").
+in_section("nav_item_process",      "sec_home").
+in_section("nav_item_projects",     "sec_home").
+in_section("nav_item_testimonials", "sec_home").
+in_section("nav_item_contact",      "sec_home").
+
+
+// ════════════════════════════════════════════════════════════
+// HERO   y 0 – 900
+// ════════════════════════════════════════════════════════════
+//
+//  ┌──────────────────┬───────────────────────────────────────────┐
+//  │                  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ hero_bg_image
+//  │  HEADLINE        │         ┌──────────────────┐             ░ │ bleeds right ~10vw
+//  │    LINE ONE      │         │  hero_image_frame│             ░ │ rot -3°
+//  │      LINE TWO    │         │  rot +2.5°       │             ░ │
+//  │  ─────────────   │         │                  │             ░ │
+//  │  tagline         │         └──────────────────┘               │
+//  │  [VIEW WORK ↗]   │                                            │
+//  │                  ↓ scroll                                     │
+//  └──────────────────────────────────────────────────────────────┘
+
+element("hero_bg_image",    "image").
+element("hero_image_frame", "image").
+// SUPERSEDED by logo_* elements below — kept for parity reference
+// element("hero_title_l1", "text").
+// element("hero_title_l2", "text").
+
+// ── Logo elements (typographic SVG art piece, left 30vw of hero) ──────────────
+// SVG source: zelda_logo.html  viewBox="0 0 480 640"
+// Page coords: x=3–33vw, y=100–680px  (scale=0.9 from SVG→page)
+// logo_mask_photo parallaxes FASTER than logo_container → photo drifts behind letters
+element("logo_container",  "overlay").  // clip-path container (30vw × 580px)
+element("logo_mask_photo", "image").    // room photo visible only through letter shapes
+element("logo_zel",        "text").     // "ZEL" — 185px/700wt, left-aligned
+element("logo_da",         "text").     // "DA"  — 185px/300wt, right-aligned
+element("logo_rule",       "rule").     // thin rule separating caps / lowercase group
+element("logo_des",        "text").     // "des" — 92px/400wt/italic, left
+element("logo_ign",        "text").     // "ign" — 92px/400wt/italic, indented
+element("logo_co",         "text").     // "co." — 26px/300wt, tracked wide
+
+element("hero_subtitle",    "text").
+element("hero_rule",        "rule").
+element("hero_cta",         "button").
+element("hero_scroll_hint", "text").
+
+// hero_bg_image: starts at 40vw, extends 72vw → bleeds 12vw off right edge
+pos("hero_bg_image",    40.0,  0.0).   size("hero_bg_image",   72.0, 900.0).
+layer("hero_bg_image",  1).             rotation("hero_bg_image",   0.0).
+anchor("hero_bg_image", 0.0, 0.0).
+parallax("hero_bg_image", 0.4).         // floats up at 60% of scroll speed
+
+// hero_image_frame: inset portrait box, slightly tilted CW
+pos("hero_image_frame",    52.0, 180.0).  size("hero_image_frame",   28.0, 470.0).
+layer("hero_image_frame",  3).             rotation("hero_image_frame",  2.5).
+anchor("hero_image_frame", 0.5, 0.5).
+parallax("hero_image_frame", 0.65).
+
+// ── LOGO: typographic SVG art piece — left 30vw ────────────────────────────
+// Coordinate note: SVG viewBox 0 0 480 640 scaled to 30vw wide on page.
+// Scale ≈ 0.9 (432px / 480px). All y values: page_y = 100 + svg_y × 0.9
+//
+//  ZEL          ← svg_y=190  page_y≈271  (baseline)  left-aligned
+//                 svg_y=368  page_y≈431  right-aligned
+//       DA
+//  ─────────── ← svg_y=408  page_y≈467  thin rule
+//  des          ← svg_y=494  page_y≈545  italic
+//       ign     ← svg_y=584  page_y≈625  italic, indent 60svg→3.75vw
+//  co.          ← svg_y=626  page_y≈663  tracked
+//
+// logo_container  — the clip-path owner; whole logo bounding box
+pos("logo_container",   3.0,  100.0).  size("logo_container",  30.0, 580.0).
+layer("logo_container", 5).             rotation("logo_container",  0.0).
+anchor("logo_container", 0.0, 0.0).
+scroll_fade_in("logo_container", 0.0, 1000.0, "ease-out").
+
+// logo_mask_photo — the image that shows THROUGH the letter shapes (clipPath)
+// Parallax at 0.55 (slower than the text at 1.0) → photo drifts behind windows
+pos("logo_mask_photo",   3.0,  80.0).  size("logo_mask_photo",  30.0, 620.0).
+layer("logo_mask_photo", 4).            rotation("logo_mask_photo",  0.0).
+anchor("logo_mask_photo", 0.0, 0.0).
+parallax("logo_mask_photo", 0.55).
+
+// logo_zel — "ZEL"  185px/700wt  left-aligned
+// box covers from cap-top to baseline: svg 57→190, page y=151→271
+pos("logo_zel",   3.0, 151.0).  size("logo_zel",  29.0, 120.0).
+layer("logo_zel", 6).            rotation("logo_zel",  0.0).
+anchor("logo_zel", 0.0, 1.0).   // anchor at bottom = baseline
+scroll_slide_in("logo_zel", -30.0, 0.0, 0.0, 900.0, "ease-out").
+
+// logo_da — "DA"  185px/300wt  right-aligned
+// box: svg 232→368, page y=309→431
+pos("logo_da",   14.5, 309.0).  size("logo_da",  18.5, 122.0).
+layer("logo_da", 6).             rotation("logo_da",  0.0).
+anchor("logo_da", 1.0, 1.0).    // anchor at bottom-right = text-anchor end
+scroll_slide_in("logo_da", 30.0, 0.0, 0.0, 1000.0, "ease-out").
+
+// logo_rule — thin horizontal rule between cap group and lowercase group
+// svg y=408, page y=467
+pos("logo_rule",   3.0, 467.0).  size("logo_rule",  27.0,   1.0).
+layer("logo_rule", 6).            rotation("logo_rule",  0.0).
+anchor("logo_rule", 0.0, 0.5).
+
+// logo_des — "des"  92px/400wt/italic  left-aligned
+// svg y=494, page y=545. Cap top: 545-66=479
+pos("logo_des",   3.0, 479.0).  size("logo_des",  21.0, 66.0).
+layer("logo_des", 6).            rotation("logo_des",  0.0).
+anchor("logo_des", 0.0, 1.0).
+scroll_slide_in("logo_des", -20.0, 0.0, 0.0, 800.0, "ease-out").
+
+// logo_ign — "ign"  92px/400wt/italic  indented 3.75vw (svg x=60 → 60/480*30=3.75vw)
+// svg y=584, page y=625. Cap top: 625-66=559
+pos("logo_ign",   6.75, 559.0).  size("logo_ign",  17.25, 66.0).
+layer("logo_ign", 6).             rotation("logo_ign",  0.0).
+anchor("logo_ign", 0.0, 1.0).
+scroll_slide_in("logo_ign", -20.0, 0.0, 0.0, 900.0, "ease-out").
+
+// logo_co — "co."  26px/300wt  tracked wide  left-aligned
+// svg y=626, page y=663. Cap top: 663-19=644
+pos("logo_co",   3.0, 644.0).  size("logo_co",  9.0, 22.0).
+layer("logo_co", 6).            rotation("logo_co",  0.0).
+anchor("logo_co", 0.0, 1.0).
+scroll_fade_in("logo_co", 0.0, 700.0, "ease-out").
+
+in_section("logo_container",  "sec_home").
+in_section("logo_mask_photo", "sec_home").
+in_section("logo_zel",        "sec_home").
+in_section("logo_da",         "sec_home").
+in_section("logo_rule",       "sec_home").
+in_section("logo_des",        "sec_home").
+in_section("logo_ign",        "sec_home").
+in_section("logo_co",         "sec_home").
+
+contains("logo_container", "logo_mask_photo").
+contains("logo_container", "logo_zel").
+contains("logo_container", "logo_da").
+contains("logo_container", "logo_rule").
+contains("logo_container", "logo_des").
+contains("logo_container", "logo_ign").
+contains("logo_container", "logo_co").
+
+// ── (Superseded generic title placeholders — archived below) ─────────────────
+// pos("hero_title_l1",  3.5, 220.0).  size("hero_title_l1",  46.0, 118.0).  rot=-3°
+// pos("hero_title_l2",  9.0, 346.0).  size("hero_title_l2",  50.0, 128.0).  rot=-3°
+
+// hero_rule: thin horizontal rule between headline and tagline
+pos("hero_rule",    3.5, 494.0).  size("hero_rule",   20.0,   1.0).
+layer("hero_rule",  5).            rotation("hero_rule",   0.0).
+anchor("hero_rule", 0.0, 0.5).
+
+// hero_subtitle: small elegant tagline
+pos("hero_subtitle",    3.5, 510.0).  size("hero_subtitle",   32.0,  36.0).
+layer("hero_subtitle",  5).            rotation("hero_subtitle",   0.0).
+anchor("hero_subtitle", 0.0, 0.5).
+scroll_fade_in("hero_subtitle", 0.0, 700.0, "ease-out").
+
+// hero_cta: primary CTA button — magnetic, scales on hover
+pos("hero_cta",    3.5, 576.0).   size("hero_cta",   14.0,  52.0).
+layer("hero_cta",  5).             rotation("hero_cta",   0.0).
+anchor("hero_cta", 0.5, 0.5).
+hover_translate("hero_cta", 0.0, -4.0, 240.0, "ease-out").
+hover_scale("hero_cta", 1.04, 1.04, 240.0, "ease-out").
+magnetic("hero_cta", 0.3, 80.0).
+on_click("hero_cta", "scroll_to:sec_projects").
+
+// hero_scroll_hint: bottom-center micro-label, bobs vertically
+pos("hero_scroll_hint",    47.0, 838.0).  size("hero_scroll_hint",   6.0,  36.0).
+layer("hero_scroll_hint",  5).             rotation("hero_scroll_hint",   0.0).
+anchor("hero_scroll_hint", 0.5, 0.5).
+hover_jiggle("hero_scroll_hint", "y", 4.0, 1.5).
+
+in_section("hero_bg_image",    "sec_home").
+in_section("hero_image_frame", "sec_home").
+in_section("hero_title_l1",    "sec_home").
+in_section("hero_title_l2",    "sec_home").
+in_section("hero_rule",        "sec_home").
+in_section("hero_subtitle",    "sec_home").
+in_section("hero_cta",         "sec_home").
+in_section("hero_scroll_hint", "sec_home").
+
+
+// ════════════════════════════════════════════════════════════
+// ABOUT   y 900 – 1700   (extended to 800px to contain full rotated magazine)
+// ════════════════════════════════════════════════════════════
+//
+//  CONCEPT: An open magazine, rotated -3.5°, floating on top of the page.
+//  The magazine bleeds upward 60px into the hero section (y=840).
+//  Drop shadow makes it feel physically present.
+//  Source: about_magazine.html
+//
+//  Coordinate origin of magazine bounding box (before rotation):
+//    x: 9vw,  y: 840px   (centered: 9 + 82/2 = 50vw center)
+//    w: 82vw, h: 700px   → bottom at y=1540 (within about section)
+//
+//  ┌────────────────────────────────────────────────┐ y=840 (rot -3.5°)
+//  │ INTERIORS QUARTERLY        Spring/Summer 2026  │
+//  │ ┌─────────────────────┐║┌───────────────────┐  │
+//  │ │                     │║│ Profile · Designer │  │
+//  │ │   [photo — left     │║│                    │  │
+//  │ │    page, full bleed]│║│ Spaces That        │  │
+//  │ │                     │║│ Tell Your Story    │  │
+//  │ │                     │║│ ─────────────────  │  │
+//  │ │                     │║│ Body copy ┊ col 2  │  │
+//  │ │                  12 │║│ pull quote ──────  │  │
+//  │ └─────────────────────┘║└─────────────────13─┘  │
+//  └────────────────────────────────────────────────┘
+//   ║ = spine (22px, gradient, inset shadow)
+
+// ── Section background ────────────────────────────────────────────────────
+element("about_bg",           "section").
+
+// ── Magazine scene (outer wrapper — applies rotation + shadow) ───────────
+element("about_mag_scene",    "overlay").   // rot=-3.5°, has drop-shadow
+
+// ── Magazine pages ────────────────────────────────────────────────────────
+element("about_mag_left",     "image").     // full-bleed photo, left page
+element("about_mag_spine",    "rule").      // center spine (gradient bar)
+element("about_mag_right",    "section").   // right page (cream background)
+
+// ── Right page content (children of about_mag_right) ─────────────────────
+element("about_mag_header",   "text").      // top header: section tag + issue
+element("about_mag_headline", "text").      // big headline "Spaces That Tell…"
+element("about_mag_byline",   "text").      // byline
+element("about_mag_rule",     "rule").      // thin gold→cream rule
+element("about_mag_body",     "text").      // 2-column body text
+element("about_mag_pullquote","text").      // italic pull quote with gold border
+element("about_mag_signature","text").      // "— Zelda [Last Name]"
+
+// ── Section label (left margin, outside magazine) ─────────────────────────
+element("about_label",        "text").      // "ABOUT" rot=-90°
+
+// Section background — extended to 800px for rotated magazine
+pos("about_bg",   0.0,  900.0).  size("about_bg",  100.0, 800.0).
+layer("about_bg", 0).             rotation("about_bg",   0.0).
+anchor("about_bg", 0.0, 0.0).
+
+// "ABOUT" rotated label on left margin
+pos("about_label",    1.5, 1230.0).  size("about_label",    6.0,  24.0).
+layer("about_label",  12).            rotation("about_label",  -90.0).
+anchor("about_label", 0.5, 0.5).
+
+// ── Magazine scene ─────────────────────────────────────────────────────────
+// Bounding box is BEFORE rotation. rot=-3.5° so visually it tilts CCW.
+// Center x = 9 + 82/2 = 50vw. Bleeds 60px up into hero (y=840).
+// drop-shadow applied in CSS — not a controlnet primitive, noted here for reference.
+pos("about_mag_scene",   9.0,  840.0).  size("about_mag_scene",  82.0, 700.0).
+layer("about_mag_scene", 10).            rotation("about_mag_scene",  -3.5).
+anchor("about_mag_scene", 0.5, 0.0).    // rotates around top-center
+scroll_fade_in("about_mag_scene",  0.05, 900.0, "ease-out").
+scroll_slide_in("about_mag_scene", 0.0, 40.0, 0.05, 900.0, "ease-out").
+
+// ── Left page: full-bleed photo ────────────────────────────────────────────
+// occupies left ~half of magazine scene (minus spine)
+// x: same as scene start (9vw), w: ~39vw
+pos("about_mag_left",   9.0,  840.0).  size("about_mag_left",   39.0, 700.0).
+layer("about_mag_left", 11).            rotation("about_mag_left",  0.0).
+anchor("about_mag_left", 0.0, 0.0).
+
+// ── Spine ──────────────────────────────────────────────────────────────────
+// 1.5vw wide, 22px physical = ~1.5vw at 1440px
+pos("about_mag_spine",   48.0,  840.0).  size("about_mag_spine",  1.5, 700.0).
+layer("about_mag_spine", 11).             rotation("about_mag_spine",  0.0).
+anchor("about_mag_spine", 0.0, 0.0).
+
+// ── Right page ─────────────────────────────────────────────────────────────
+// x: spine_right = 48+1.5 = 49.5vw, w: remaining 82-(39+1.5) = 41.5vw
+pos("about_mag_right",   49.5,  840.0).  size("about_mag_right",  41.5, 700.0).
+layer("about_mag_right", 11).             rotation("about_mag_right",  0.0).
+anchor("about_mag_right", 0.0, 0.0).
+
+// ── Right page content (coords within magazine_right; y relative to page top 840) ─
+pos("about_mag_header",    49.5,  872.0).  size("about_mag_header",    41.5, 18.0).
+layer("about_mag_header",  12).             rotation("about_mag_header",   0.0).
+anchor("about_mag_header", 0.0, 0.0).
+
+pos("about_mag_headline",  49.5,  920.0).  size("about_mag_headline",  41.5, 100.0).
+layer("about_mag_headline",12).             rotation("about_mag_headline",  0.0).
+anchor("about_mag_headline",0.0, 0.0).
+
+pos("about_mag_byline",    49.5, 1028.0).  size("about_mag_byline",    41.5, 16.0).
+layer("about_mag_byline",  12).             rotation("about_mag_byline",   0.0).
+anchor("about_mag_byline", 0.0, 0.0).
+
+pos("about_mag_rule",      49.5, 1050.0).  size("about_mag_rule",      38.0,  1.0).
+layer("about_mag_rule",    12).             rotation("about_mag_rule",     0.0).
+anchor("about_mag_rule",   0.0, 0.5).
+
+pos("about_mag_body",      49.5, 1068.0).  size("about_mag_body",      41.5, 320.0).
+layer("about_mag_body",    12).             rotation("about_mag_body",     0.0).
+anchor("about_mag_body",   0.0, 0.0).
+
+pos("about_mag_pullquote", 49.5, 1180.0).  size("about_mag_pullquote", 38.0,  60.0).
+layer("about_mag_pullquote",12).            rotation("about_mag_pullquote",  0.0).
+anchor("about_mag_pullquote",0.0, 0.0).
+
+pos("about_mag_signature", 49.5, 1490.0).  size("about_mag_signature", 30.0,  22.0).
+layer("about_mag_signature",12).            rotation("about_mag_signature",  0.0).
+anchor("about_mag_signature",0.0, 0.0).
+
+// Containment
+contains("about_mag_scene", "about_mag_left").
+contains("about_mag_scene", "about_mag_spine").
+contains("about_mag_scene", "about_mag_right").
+contains("about_mag_right", "about_mag_header").
+contains("about_mag_right", "about_mag_headline").
+contains("about_mag_right", "about_mag_byline").
+contains("about_mag_right", "about_mag_rule").
+contains("about_mag_right", "about_mag_body").
+contains("about_mag_right", "about_mag_pullquote").
+contains("about_mag_right", "about_mag_signature").
+
+// (about_signature superseded by about_mag_signature inside magazine)
+
+in_section("about_bg",            "sec_about").
+in_section("about_label",         "sec_about").
+in_section("about_mag_scene",     "sec_about").
+in_section("about_mag_left",      "sec_about").
+in_section("about_mag_spine",     "sec_about").
+in_section("about_mag_right",     "sec_about").
+in_section("about_mag_header",    "sec_about").
+in_section("about_mag_headline",  "sec_about").
+in_section("about_mag_byline",    "sec_about").
+in_section("about_mag_rule",      "sec_about").
+in_section("about_mag_body",      "sec_about").
+in_section("about_mag_pullquote", "sec_about").
+in_section("about_mag_signature", "sec_about").
+
+
+// ════════════════════════════════════════════════════════════
+// SERVICES   y 1500 – 2100
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐
+//  │02                     Services                           │
+//  │                       ───────                            │
+//  │  ┌──────────┐     ┌──────────┐     ┌──────────┐         │
+//  │  │  card_1  │     │  card_2  │     │  card_3  │         │
+//  │  │ rot -1°  │     │ rot  0°  │     │ rot +1.5°│         │
+//  │  │ [image]  │     │ [image]  │     │ [image]  │         │
+//  │  └──────────┘     └──────────┘     └──────────┘         │
+//  │  Title            Title            Title                 │
+//  │  Body copy        Body copy        Body copy             │
+//  └─────────────────────────────────────────────────────────┘
+//   Cards stagger vertically by ±40px for visual rhythm
+//   Hover: float up 8px + slight counter-rotation
+
+element("services_bg",          "section").
+element("services_section_no",  "text").
+element("services_label",       "text").
+element("services_title",       "text").
+element("services_rule",        "rule").
+element("services_card_1",      "image").
+element("services_card_2",      "image").
+element("services_card_3",      "image").
+element("services_card_1_title","text").
+element("services_card_2_title","text").
+element("services_card_3_title","text").
+element("services_card_1_body", "text").
+element("services_card_2_body", "text").
+element("services_card_3_body", "text").
+
+pos("services_bg",   0.0, 1500.0).  size("services_bg",  100.0, 600.0).
+layer("services_bg", 0).             rotation("services_bg",   0.0).
+anchor("services_bg", 0.0, 0.0).
+
+pos("services_section_no",   -1.5, 1510.0).  size("services_section_no",  18.0, 160.0).
+layer("services_section_no", 1).              rotation("services_section_no",   0.0).
+anchor("services_section_no", 0.0, 0.0).     opacity("services_section_no", 0.07).
+
+pos("services_label",    1.5, 1700.0).  size("services_label",    6.0,  24.0).
+layer("services_label",  4).             rotation("services_label",  -90.0).
+anchor("services_label", 0.5, 0.5).
+
+pos("services_title",    10.0, 1540.0).  size("services_title",   55.0,  76.0).
+layer("services_title",  4).              rotation("services_title",   0.0).
+anchor("services_title", 0.0, 0.0).
+scroll_fade_in("services_title",  0.1, 700.0, "ease-out").
+scroll_slide_in("services_title", 0.0, 20.0, 0.1, 700.0, "ease-out").
+
+pos("services_rule",    10.0, 1624.0).  size("services_rule",    6.0,   1.0).
+layer("services_rule",  4).              rotation("services_rule",    0.0).
+anchor("services_rule", 0.0, 0.5).
+
+// Card 1: left, y slightly lower (stagger)
+pos("services_card_1",    8.0, 1660.0).   size("services_card_1",  24.0, 310.0).
+layer("services_card_1",  3).              rotation("services_card_1",  -1.0).
+anchor("services_card_1", 0.5, 0.5).
+scroll_fade_in("services_card_1",  0.1, 700.0, "ease-out").
+scroll_slide_in("services_card_1", 0.0, 40.0, 0.1, 700.0, "ease-out").
+hover_translate("services_card_1", 0.0, -8.0, 300.0, "ease-out").
+hover_rotate("services_card_1",  1.0, 300.0, "ease-out").
+
+// Card 2: center, baseline (y offset +40px for stagger)
+pos("services_card_2",    38.0, 1700.0).  size("services_card_2",  24.0, 310.0).
+layer("services_card_2",  3).              rotation("services_card_2",  0.0).
+anchor("services_card_2", 0.5, 0.5).
+scroll_fade_in("services_card_2",  0.1, 800.0, "ease-out").
+scroll_slide_in("services_card_2", 0.0, 50.0, 0.1, 800.0, "ease-out").
+hover_translate("services_card_2", 0.0, -8.0, 300.0, "ease-out").
+
+// Card 3: right, y slightly higher (stagger)
+pos("services_card_3",    68.0, 1670.0).  size("services_card_3",  24.0, 310.0).
+layer("services_card_3",  3).              rotation("services_card_3",  1.5).
+anchor("services_card_3", 0.5, 0.5).
+scroll_fade_in("services_card_3",  0.1, 900.0, "ease-out").
+scroll_slide_in("services_card_3", 0.0, 60.0, 0.1, 900.0, "ease-out").
+hover_translate("services_card_3", 0.0, -8.0, 300.0, "ease-out").
+hover_rotate("services_card_3", -1.0, 300.0, "ease-out").
+
+// Card labels — below respective cards
+pos("services_card_1_title",  8.5, 1984.0).  size("services_card_1_title",  23.0, 28.0).
+pos("services_card_2_title", 38.5, 2024.0).  size("services_card_2_title",  23.0, 28.0).
+pos("services_card_3_title", 68.5, 1994.0).  size("services_card_3_title",  23.0, 28.0).
+pos("services_card_1_body",   8.5, 2020.0).  size("services_card_1_body",   23.0, 48.0).
+pos("services_card_2_body",  38.5, 2060.0).  size("services_card_2_body",   23.0, 48.0).
+pos("services_card_3_body",  68.5, 2030.0).  size("services_card_3_body",   23.0, 48.0).
+
+layer("services_card_1_title", 4).  rotation("services_card_1_title", 0.0).  anchor("services_card_1_title", 0.0, 0.0).
+layer("services_card_2_title", 4).  rotation("services_card_2_title", 0.0).  anchor("services_card_2_title", 0.0, 0.0).
+layer("services_card_3_title", 4).  rotation("services_card_3_title", 0.0).  anchor("services_card_3_title", 0.0, 0.0).
+layer("services_card_1_body",  4).  rotation("services_card_1_body",  0.0).  anchor("services_card_1_body",  0.0, 0.0).
+layer("services_card_2_body",  4).  rotation("services_card_2_body",  0.0).  anchor("services_card_2_body",  0.0, 0.0).
+layer("services_card_3_body",  4).  rotation("services_card_3_body",  0.0).  anchor("services_card_3_body",  0.0, 0.0).
+
+scroll_fade_in("services_card_1_title", 0.1, 700.0, "ease-out").
+scroll_fade_in("services_card_2_title", 0.1, 800.0, "ease-out").
+scroll_fade_in("services_card_3_title", 0.1, 900.0, "ease-out").
+scroll_fade_in("services_card_1_body",  0.1, 700.0, "ease-out").
+scroll_fade_in("services_card_2_body",  0.1, 800.0, "ease-out").
+scroll_fade_in("services_card_3_body",  0.1, 900.0, "ease-out").
+
+contains("services_card_1", "services_card_1_title").  contains("services_card_1", "services_card_1_body").
+contains("services_card_2", "services_card_2_title").  contains("services_card_2", "services_card_2_body").
+contains("services_card_3", "services_card_3_title").  contains("services_card_3", "services_card_3_body").
+
+in_section("services_bg",          "sec_services").
+in_section("services_section_no",  "sec_services").
+in_section("services_label",       "sec_services").
+in_section("services_title",       "sec_services").
+in_section("services_rule",        "sec_services").
+in_section("services_card_1",      "sec_services").
+in_section("services_card_2",      "sec_services").
+in_section("services_card_3",      "sec_services").
+in_section("services_card_1_title","sec_services").
+in_section("services_card_2_title","sec_services").
+in_section("services_card_3_title","sec_services").
+in_section("services_card_1_body", "sec_services").
+in_section("services_card_2_body", "sec_services").
+in_section("services_card_3_body", "sec_services").
+
+
+// ════════════════════════════════════════════════════════════
+// PROCESS   y 2100 – 2660
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐
+//  │03                     Process                            │
+//  │                       ───────                            │
+//  │  01        02        03        04                        │
+//  │  ──────────────────────────────────  (connector line)    │
+//  │  Discovery  Concept  Refinement  Delivery                │
+//  │  copy       copy     copy        copy                    │
+//  └─────────────────────────────────────────────────────────┘
+//  Steps stagger in with increasing delay (cascading reveal)
+
+element("process_bg",        "section").
+element("process_section_no","text").
+element("process_label",     "text").
+element("process_title",     "text").
+element("process_rule",      "rule").
+element("process_connector", "rule").
+element("process_step_1_no", "text").
+element("process_step_2_no", "text").
+element("process_step_3_no", "text").
+element("process_step_4_no", "text").
+element("process_step_1",    "text").
+element("process_step_2",    "text").
+element("process_step_3",    "text").
+element("process_step_4",    "text").
+
+pos("process_bg",   0.0, 2100.0).  size("process_bg",  100.0, 560.0).
+layer("process_bg", 0).             rotation("process_bg",   0.0).
+anchor("process_bg", 0.0, 0.0).
+
+pos("process_section_no",   -1.5, 2110.0).  size("process_section_no",  18.0, 160.0).
+layer("process_section_no", 1).              rotation("process_section_no",   0.0).
+anchor("process_section_no", 0.0, 0.0).     opacity("process_section_no", 0.07).
+
+pos("process_label",    1.5, 2330.0).  size("process_label",    6.0,  24.0).
+layer("process_label",  4).             rotation("process_label",  -90.0).
+anchor("process_label", 0.5, 0.5).
+
+pos("process_title",    10.0, 2140.0).  size("process_title",   55.0,  76.0).
+layer("process_title",  4).              rotation("process_title",   0.0).
+anchor("process_title", 0.0, 0.0).
+scroll_fade_in("process_title", 0.1, 700.0, "ease-out").
+
+pos("process_rule",    10.0, 2224.0).  size("process_rule",    6.0,  1.0).
+layer("process_rule",  4).              rotation("process_rule",   0.0).
+anchor("process_rule", 0.0, 0.5).
+
+// Step numbers (above connector line, anchored bottom so they sit on the line)
+pos("process_step_1_no",  11.0, 2340.0).  size("process_step_1_no",   8.0,  56.0).
+pos("process_step_2_no",  34.5, 2340.0).  size("process_step_2_no",   8.0,  56.0).
+pos("process_step_3_no",  58.0, 2340.0).  size("process_step_3_no",   8.0,  56.0).
+pos("process_step_4_no",  81.5, 2340.0).  size("process_step_4_no",   8.0,  56.0).
+
+layer("process_step_1_no", 3).  rotation("process_step_1_no", 0.0).  anchor("process_step_1_no", 0.5, 1.0).
+layer("process_step_2_no", 3).  rotation("process_step_2_no", 0.0).  anchor("process_step_2_no", 0.5, 1.0).
+layer("process_step_3_no", 3).  rotation("process_step_3_no", 0.0).  anchor("process_step_3_no", 0.5, 1.0).
+layer("process_step_4_no", 3).  rotation("process_step_4_no", 0.0).  anchor("process_step_4_no", 0.5, 1.0).
+
+// Thin horizontal connector line at y=2396 (bottom of step numbers)
+pos("process_connector",    10.0, 2396.0).  size("process_connector",  80.0,   1.0).
+layer("process_connector",  2).              rotation("process_connector",   0.0).
+anchor("process_connector", 0.0, 0.5).
+
+// Step descriptions below connector
+pos("process_step_1",   8.0, 2412.0).  size("process_step_1",  18.0, 160.0).
+pos("process_step_2",  31.5, 2412.0).  size("process_step_2",  18.0, 160.0).
+pos("process_step_3",  55.0, 2412.0).  size("process_step_3",  18.0, 160.0).
+pos("process_step_4",  78.5, 2412.0).  size("process_step_4",  18.0, 160.0).
+
+layer("process_step_1", 4).  rotation("process_step_1", 0.0).  anchor("process_step_1", 0.0, 0.0).
+layer("process_step_2", 4).  rotation("process_step_2", 0.0).  anchor("process_step_2", 0.0, 0.0).
+layer("process_step_3", 4).  rotation("process_step_3", 0.0).  anchor("process_step_3", 0.0, 0.0).
+layer("process_step_4", 4).  rotation("process_step_4", 0.0).  anchor("process_step_4", 0.0, 0.0).
+
+scroll_fade_in("process_step_1", 0.1, 600.0, "ease-out").  scroll_slide_in("process_step_1", 0.0, 20.0, 0.1, 600.0, "ease-out").
+scroll_fade_in("process_step_2", 0.1, 700.0, "ease-out").  scroll_slide_in("process_step_2", 0.0, 20.0, 0.1, 700.0, "ease-out").
+scroll_fade_in("process_step_3", 0.1, 800.0, "ease-out").  scroll_slide_in("process_step_3", 0.0, 20.0, 0.1, 800.0, "ease-out").
+scroll_fade_in("process_step_4", 0.1, 900.0, "ease-out").  scroll_slide_in("process_step_4", 0.0, 20.0, 0.1, 900.0, "ease-out").
+
+in_section("process_bg",        "sec_process").
+in_section("process_section_no","sec_process").
+in_section("process_label",     "sec_process").
+in_section("process_title",     "sec_process").
+in_section("process_rule",      "sec_process").
+in_section("process_connector", "sec_process").
+in_section("process_step_1_no", "sec_process").
+in_section("process_step_2_no", "sec_process").
+in_section("process_step_3_no", "sec_process").
+in_section("process_step_4_no", "sec_process").
+in_section("process_step_1",    "sec_process").
+in_section("process_step_2",    "sec_process").
+in_section("process_step_3",    "sec_process").
+in_section("process_step_4",    "sec_process").
+
+
+// ════════════════════════════════════════════════════════════
+// PROJECTS   y 2660 – 3060
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐
+//  │04                     Projects                           │
+//  │                       ────────                           │
+//  │   ┌──────────────┐                                       │
+//  │   │  img_1       │  ┌──────────────┐   ┌──────────┐     │
+//  │   │  rot -2°     │  │  img_2       │   │  img_3   │     │
+//  │   │  (large)     │  │  rot +3°     │   │  rot +1° │     │
+//  │   │              │  │  z=4 (front) │   │  (tall)  │     │
+//  │   └──────────────┘  └──────────────┘   └──────────┘     │
+//  │                                    ┌────────┐            │
+//  │                                    │ img_4  │            │
+//  │                                    │ rot-3.5│bleeds right│
+//  │                     [VIEW ALL ↗]                         │
+//  └─────────────────────────────────────────────────────────┘
+//  All images: hover float-up + slight scale; parallax at different speeds
+
+element("projects_bg",         "section").
+element("projects_section_no", "text").
+element("projects_label",      "text").
+element("projects_title",      "text").
+element("projects_rule",       "rule").
+element("projects_img_1",      "image").
+element("projects_img_2",      "image").
+element("projects_img_3",      "image").
+element("projects_img_4",      "image").
+element("projects_cta",        "button").
+
+pos("projects_bg",   0.0, 2660.0).  size("projects_bg",  100.0, 400.0).
+layer("projects_bg", 0).             rotation("projects_bg",   0.0).
+anchor("projects_bg", 0.0, 0.0).
+
+pos("projects_section_no",   -1.5, 2670.0).  size("projects_section_no",  18.0, 160.0).
+layer("projects_section_no", 1).              rotation("projects_section_no",   0.0).
+anchor("projects_section_no", 0.0, 0.0).     opacity("projects_section_no", 0.07).
+
+pos("projects_label",    1.5, 2830.0).  size("projects_label",    6.0,  24.0).
+layer("projects_label",  4).             rotation("projects_label",  -90.0).
+anchor("projects_label", 0.5, 0.5).
+
+pos("projects_title",    10.0, 2690.0).  size("projects_title",   50.0,  66.0).
+layer("projects_title",  4).              rotation("projects_title",   0.0).
+anchor("projects_title", 0.0, 0.0).
+scroll_fade_in("projects_title", 0.1, 700.0, "ease-out").
+
+pos("projects_rule",    10.0, 2764.0).  size("projects_rule",    6.0,   1.0).
+layer("projects_rule",  4).              rotation("projects_rule",   0.0).
+anchor("projects_rule", 0.0, 0.5).
+
+// img_1: large landscape, left — rot -2°
+pos("projects_img_1",    7.0, 2780.0).  size("projects_img_1",  40.0, 220.0).
+layer("projects_img_1",  2).             rotation("projects_img_1",  -2.0).
+anchor("projects_img_1", 0.5, 0.5).
+parallax("projects_img_1", 0.90).
+scroll_fade_in("projects_img_1", 0.1, 700.0, "ease-out").
+hover_translate("projects_img_1", 0.0, -6.0, 380.0, "ease-out").
+hover_scale("projects_img_1", 1.03, 1.03, 380.0, "ease-out").
+
+// img_2: medium, overlaps img_1 and img_3, front layer, rot +3°
+pos("projects_img_2",    34.0, 2810.0).  size("projects_img_2",  30.0, 200.0).
+layer("projects_img_2",  4).              rotation("projects_img_2",  3.0).
+anchor("projects_img_2", 0.5, 0.5).
+parallax("projects_img_2", 0.80).
+scroll_fade_in("projects_img_2", 0.15, 800.0, "ease-out").
+hover_translate("projects_img_2", 0.0, -6.0, 380.0, "ease-out").
+hover_scale("projects_img_2", 1.03, 1.03, 380.0, "ease-out").
+
+// img_3: tall portrait, right zone, rot +1°
+pos("projects_img_3",    60.0, 2760.0).  size("projects_img_3",  22.0, 250.0).
+layer("projects_img_3",  3).              rotation("projects_img_3",  1.0).
+anchor("projects_img_3", 0.5, 0.5).
+parallax("projects_img_3", 0.95).
+scroll_fade_in("projects_img_3", 0.15, 900.0, "ease-out").
+hover_translate("projects_img_3", 0.0, -6.0, 380.0, "ease-out").
+
+// img_4: small accent, bottom-right, rot -3.5°, bleeds slightly off right
+pos("projects_img_4",    80.0, 2870.0).  size("projects_img_4",  24.0, 150.0).
+layer("projects_img_4",  2).              rotation("projects_img_4",  -3.5).
+anchor("projects_img_4", 0.5, 0.5).
+parallax("projects_img_4", 1.05).        // sinks slightly faster = depth effect
+scroll_fade_in("projects_img_4", 0.2, 600.0, "ease-out").
+hover_translate("projects_img_4", 0.0, -4.0, 340.0, "ease-out").
+
+// CTA: centered below cluster, magnetic
+pos("projects_cta",    43.0, 3010.0).  size("projects_cta",  14.0,  48.0).
+layer("projects_cta",  5).              rotation("projects_cta",   0.0).
+anchor("projects_cta", 0.5, 0.5).
+hover_translate("projects_cta", 0.0, -4.0, 240.0, "ease-out").
+hover_scale("projects_cta", 1.04, 1.04, 240.0, "ease-out").
+magnetic("projects_cta", 0.3, 80.0).
+on_click("projects_cta", "open_modal").
+scroll_fade_in("projects_cta", 0.2, 600.0, "ease-out").
+
+in_section("projects_bg",         "sec_projects").
+in_section("projects_section_no", "sec_projects").
+in_section("projects_label",      "sec_projects").
+in_section("projects_title",      "sec_projects").
+in_section("projects_rule",       "sec_projects").
+in_section("projects_img_1",      "sec_projects").
+in_section("projects_img_2",      "sec_projects").
+in_section("projects_img_3",      "sec_projects").
+in_section("projects_img_4",      "sec_projects").
+in_section("projects_cta",        "sec_projects").
+
+
+// ════════════════════════════════════════════════════════════
+// TESTIMONIALS   y 3060 – 3260
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐
+//  │05   "                                                    │ large faded quote mark
+//  │                                                          │
+//  │       "Lorem ipsum dolor sit amet, consectetur           │
+//  │        adipiscing elit. The space was transformed         │
+//  │        beyond what I thought possible."                  │
+//  │                                                          │
+//  │        — Client Name, City                               │
+//  │        ● ○ ○   (carousel dots)                           │
+//  └─────────────────────────────────────────────────────────┘
+
+element("testimonials_bg",          "section").
+element("testimonials_section_no",  "text").
+element("testimonials_label",       "text").
+element("testimonials_quote_mark",  "text").
+element("testimonials_quote",       "text").
+element("testimonials_attribution", "text").
+element("testimonials_dots",        "text").
+
+pos("testimonials_bg",   0.0, 3060.0).  size("testimonials_bg",  100.0, 200.0).
+layer("testimonials_bg", 0).             rotation("testimonials_bg",   0.0).
+anchor("testimonials_bg", 0.0, 0.0).
+
+pos("testimonials_section_no",   -1.5, 3070.0).  size("testimonials_section_no",  18.0, 160.0).
+layer("testimonials_section_no", 1).              rotation("testimonials_section_no",   0.0).
+anchor("testimonials_section_no", 0.0, 0.0).     opacity("testimonials_section_no", 0.07).
+
+pos("testimonials_label",    1.5, 3140.0).  size("testimonials_label",    6.0,  24.0).
+layer("testimonials_label",  4).             rotation("testimonials_label",  -90.0).
+anchor("testimonials_label", 0.5, 0.5).
+
+// Large decorative opening quotation mark — faded, top-left of quote zone
+pos("testimonials_quote_mark",    18.0, 3072.0).  size("testimonials_quote_mark",   10.0,  96.0).
+layer("testimonials_quote_mark",  2).              rotation("testimonials_quote_mark",   0.0).
+anchor("testimonials_quote_mark", 0.0, 0.0).      opacity("testimonials_quote_mark", 0.14).
+
+// Quote body: centered wide band
+pos("testimonials_quote",    20.0, 3150.0).  size("testimonials_quote",   60.0,  96.0).
+layer("testimonials_quote",  4).              rotation("testimonials_quote",   0.0).
+anchor("testimonials_quote", 0.5, 0.0).
+scroll_fade_in("testimonials_quote", 0.15, 700.0, "ease-out").
+
+// Attribution: em-dash + name, city
+pos("testimonials_attribution",    20.0, 3258.0).  size("testimonials_attribution",   60.0,  24.0).
+layer("testimonials_attribution",  4).              rotation("testimonials_attribution",   0.0).
+anchor("testimonials_attribution", 0.5, 0.0).
+scroll_fade_in("testimonials_attribution", 0.15, 600.0, "ease-out").
+
+// Carousel dot indicators
+pos("testimonials_dots",    47.0, 3302.0).  size("testimonials_dots",    6.0,  14.0).
+layer("testimonials_dots",  4).              rotation("testimonials_dots",   0.0).
+anchor("testimonials_dots", 0.5, 0.5).
+
+in_section("testimonials_bg",          "sec_testimonials").
+in_section("testimonials_section_no",  "sec_testimonials").
+in_section("testimonials_label",       "sec_testimonials").
+in_section("testimonials_quote_mark",  "sec_testimonials").
+in_section("testimonials_quote",       "sec_testimonials").
+in_section("testimonials_attribution", "sec_testimonials").
+in_section("testimonials_dots",        "sec_testimonials").
+
+
+// ════════════════════════════════════════════════════════════
+// CONTACT   y 3260 – 3500
+// ════════════════════════════════════════════════════════════
+//
+//  ┌──────────────────────┬──────────────────────────────────┐
+//  │  Let's Create        │  [Name ________________]         │
+//  │  Together            │  [Email _______________]         │
+//  │  ───────             │  [Message _____________]         │
+//  │  email@studio.com    │  [_____________________]         │
+//  │  +1 (555) 000-0000   │              [SEND MESSAGE →]    │
+//  │  123 Design St, NYC  │                                  │
+//  └──────────────────────┴──────────────────────────────────┘
+
+element("contact_bg",           "section").
+element("contact_section_no",   "text").
+element("contact_label",        "text").
+element("contact_title",        "text").
+element("contact_rule",         "rule").
+element("contact_email_link",   "text").
+element("contact_phone",        "text").
+element("contact_address",      "text").
+element("contact_form_name",    "text").
+element("contact_form_email",   "text").
+element("contact_form_message", "text").
+element("contact_form_submit",  "button").
+
+pos("contact_bg",   0.0, 3260.0).  size("contact_bg",  100.0, 240.0).
+layer("contact_bg", 0).             rotation("contact_bg",   0.0).
+anchor("contact_bg", 0.0, 0.0).
+
+pos("contact_section_no",   -1.5, 3270.0).  size("contact_section_no",  18.0, 120.0).
+layer("contact_section_no", 1).              rotation("contact_section_no",   0.0).
+anchor("contact_section_no", 0.0, 0.0).     opacity("contact_section_no", 0.07).
+
+pos("contact_label",    1.5, 3360.0).  size("contact_label",    6.0,  24.0).
+layer("contact_label",  4).             rotation("contact_label",  -90.0).
+anchor("contact_label", 0.5, 0.5).
+
+// Left column — headline + contact details
+pos("contact_title",    10.0, 3290.0).  size("contact_title",   34.0,  60.0).
+layer("contact_title",  4).              rotation("contact_title",   0.0).
+anchor("contact_title", 0.0, 0.0).
+scroll_fade_in("contact_title", 0.1, 700.0, "ease-out").
+
+pos("contact_rule",    10.0, 3358.0).  size("contact_rule",    6.0,   1.0).
+layer("contact_rule",  4).              rotation("contact_rule",   0.0).
+anchor("contact_rule", 0.0, 0.5).
+
+pos("contact_email_link",    10.0, 3372.0).  size("contact_email_link",   26.0,  22.0).
+layer("contact_email_link",  4).              rotation("contact_email_link",   0.0).
+anchor("contact_email_link", 0.0, 0.0).
+hover_opacity("contact_email_link", 0.55, 180.0, "ease").
+on_click("contact_email_link", "open_link").
+
+pos("contact_phone",    10.0, 3404.0).  size("contact_phone",   20.0,  22.0).
+layer("contact_phone",  4).              rotation("contact_phone",   0.0).
+anchor("contact_phone", 0.0, 0.0).
+
+pos("contact_address",    10.0, 3434.0).  size("contact_address",   26.0,  38.0).
+layer("contact_address",  4).              rotation("contact_address",   0.0).
+anchor("contact_address", 0.0, 0.0).
+
+// Right column — contact form
+pos("contact_form_name",    54.0, 3290.0).  size("contact_form_name",   38.0,  40.0).
+pos("contact_form_email",   54.0, 3338.0).  size("contact_form_email",  38.0,  40.0).
+pos("contact_form_message", 54.0, 3386.0).  size("contact_form_message",38.0,  66.0).
+pos("contact_form_submit",  54.0, 3464.0).  size("contact_form_submit", 15.0,  44.0).
+
+layer("contact_form_name",    4).  rotation("contact_form_name",    0.0).  anchor("contact_form_name",    0.0, 0.0).
+layer("contact_form_email",   4).  rotation("contact_form_email",   0.0).  anchor("contact_form_email",   0.0, 0.0).
+layer("contact_form_message", 4).  rotation("contact_form_message", 0.0).  anchor("contact_form_message", 0.0, 0.0).
+layer("contact_form_submit",  5).  rotation("contact_form_submit",  0.0).  anchor("contact_form_submit",  0.0, 0.5).
+
+hover_translate("contact_form_submit", 0.0, -4.0, 220.0, "ease-out").
+hover_scale("contact_form_submit", 1.03, 1.03, 220.0, "ease-out").
+magnetic("contact_form_submit", 0.25, 70.0).
+on_click("contact_form_submit", "submit_form").
+
+in_section("contact_bg",           "sec_contact").
+in_section("contact_section_no",   "sec_contact").
+in_section("contact_label",        "sec_contact").
+in_section("contact_title",        "sec_contact").
+in_section("contact_rule",         "sec_contact").
+in_section("contact_email_link",   "sec_contact").
+in_section("contact_phone",        "sec_contact").
+in_section("contact_address",      "sec_contact").
+in_section("contact_form_name",    "sec_contact").
+in_section("contact_form_email",   "sec_contact").
+in_section("contact_form_message", "sec_contact").
+in_section("contact_form_submit",  "sec_contact").
+
+
+// ════════════════════════════════════════════════════════════
+// FOOTER   y 3500 – 3700
+// ════════════════════════════════════════════════════════════
+//
+//  ┌─────────────────────────────────────────────────────────┐
+//  │  [LOGO]              HOME  ABOUT  SERVICES   IG  PT  HZ  LI │
+//  │  tagline             PROCESS  PROJECTS                   │
+//  │  email               TESTIMONIALS  CONTACT               │
+//  │  phone                                                   │
+//  │  address                                                 │
+//  │ ─────────────────────────────────────────────────────── │
+//  │  © 2026 Studio Name. All rights reserved.               │
+//  └─────────────────────────────────────────────────────────┘
+//   3 columns: [logo+contact] [nav links] [social icons]
+
+element("footer_bg",               "footer").
+element("footer_logo",             "text").
+element("footer_tagline",          "text").
+element("footer_contact_email",    "footer_link").
+element("footer_contact_phone",    "footer_link").
+element("footer_contact_address",  "text").
+// Nav links
+element("footer_nav_home",         "footer_link").
+element("footer_nav_about",        "footer_link").
+element("footer_nav_services",     "footer_link").
+element("footer_nav_process",      "footer_link").
+element("footer_nav_projects",     "footer_link").
+element("footer_nav_testimonials", "footer_link").
+element("footer_nav_contact",      "footer_link").
+// Social
+element("footer_social_instagram", "social_link").
+element("footer_social_pinterest", "social_link").
+element("footer_social_houzz",     "social_link").
+element("footer_social_linkedin",  "social_link").
+// Bottom bar
+element("footer_rule",             "rule").
+element("footer_copyright",        "text").
+
+pos("footer_bg",   0.0, 3500.0).  size("footer_bg",  100.0, 200.0).
+layer("footer_bg", 0).             rotation("footer_bg",   0.0).
+anchor("footer_bg", 0.0, 0.0).
+
+// — Column 1: Logo + tagline + contact (x 4–30%)
+pos("footer_logo",    4.0, 3518.0).  size("footer_logo",   14.0,  30.0).
+layer("footer_logo",  2).             rotation("footer_logo",   0.0).  anchor("footer_logo", 0.0, 0.0).
+
+pos("footer_tagline",    4.0, 3554.0).  size("footer_tagline",  24.0,  16.0).
+layer("footer_tagline",  2).             rotation("footer_tagline",   0.0).  anchor("footer_tagline", 0.0, 0.0).
+
+pos("footer_contact_email",    4.0, 3576.0).  size("footer_contact_email",   22.0,  16.0).
+layer("footer_contact_email",  2).             rotation("footer_contact_email",   0.0).  anchor("footer_contact_email", 0.0, 0.0).
+hover_opacity("footer_contact_email", 0.55, 180.0, "ease").
+on_click("footer_contact_email", "open_link").
+
+pos("footer_contact_phone",    4.0, 3598.0).  size("footer_contact_phone",   18.0,  16.0).
+layer("footer_contact_phone",  2).             rotation("footer_contact_phone",   0.0).  anchor("footer_contact_phone", 0.0, 0.0).
+hover_opacity("footer_contact_phone", 0.55, 180.0, "ease").
+on_click("footer_contact_phone", "open_link").
+
+pos("footer_contact_address",    4.0, 3620.0).  size("footer_contact_address",   22.0,  28.0).
+layer("footer_contact_address",  2).             rotation("footer_contact_address",   0.0).  anchor("footer_contact_address", 0.0, 0.0).
+
+// — Column 2: Nav links (x 36–66%)  3 rows of links
+pos("footer_nav_home",         36.0, 3518.0).  size("footer_nav_home",         10.0,  16.0).
+pos("footer_nav_about",        49.0, 3518.0).  size("footer_nav_about",        10.0,  16.0).
+pos("footer_nav_services",     60.0, 3518.0).  size("footer_nav_services",     11.0,  16.0).
+pos("footer_nav_process",      36.0, 3542.0).  size("footer_nav_process",      10.0,  16.0).
+pos("footer_nav_projects",     49.0, 3542.0).  size("footer_nav_projects",     10.0,  16.0).
+pos("footer_nav_testimonials", 60.0, 3542.0).  size("footer_nav_testimonials", 13.0,  16.0).
+pos("footer_nav_contact",      36.0, 3566.0).  size("footer_nav_contact",      10.0,  16.0).
+
+layer("footer_nav_home", 2).          rotation("footer_nav_home", 0.0).          anchor("footer_nav_home", 0.0, 0.0).
+layer("footer_nav_about", 2).         rotation("footer_nav_about", 0.0).         anchor("footer_nav_about", 0.0, 0.0).
+layer("footer_nav_services", 2).      rotation("footer_nav_services", 0.0).      anchor("footer_nav_services", 0.0, 0.0).
+layer("footer_nav_process", 2).       rotation("footer_nav_process", 0.0).       anchor("footer_nav_process", 0.0, 0.0).
+layer("footer_nav_projects", 2).      rotation("footer_nav_projects", 0.0).      anchor("footer_nav_projects", 0.0, 0.0).
+layer("footer_nav_testimonials", 2).  rotation("footer_nav_testimonials", 0.0).  anchor("footer_nav_testimonials", 0.0, 0.0).
+layer("footer_nav_contact", 2).       rotation("footer_nav_contact", 0.0).       anchor("footer_nav_contact", 0.0, 0.0).
+
+hover_opacity("footer_nav_home",         0.45, 180.0, "ease").
+hover_opacity("footer_nav_about",        0.45, 180.0, "ease").
+hover_opacity("footer_nav_services",     0.45, 180.0, "ease").
+hover_opacity("footer_nav_process",      0.45, 180.0, "ease").
+hover_opacity("footer_nav_projects",     0.45, 180.0, "ease").
+hover_opacity("footer_nav_testimonials", 0.45, 180.0, "ease").
+hover_opacity("footer_nav_contact",      0.45, 180.0, "ease").
+
+on_click("footer_nav_home",         "scroll_to:sec_home").
+on_click("footer_nav_about",        "scroll_to:sec_about").
+on_click("footer_nav_services",     "scroll_to:sec_services").
+on_click("footer_nav_process",      "scroll_to:sec_process").
+on_click("footer_nav_projects",     "scroll_to:sec_projects").
+on_click("footer_nav_testimonials", "scroll_to:sec_testimonials").
+on_click("footer_nav_contact",      "scroll_to:sec_contact").
+
+// — Column 3: Social icons (x 74–96%), row of 4 icons
+pos("footer_social_instagram",  74.0, 3518.0).  size("footer_social_instagram",  4.5,  4.5).
+pos("footer_social_pinterest",  80.5, 3518.0).  size("footer_social_pinterest",  4.5,  4.5).
+pos("footer_social_houzz",      87.0, 3518.0).  size("footer_social_houzz",      4.5,  4.5).
+pos("footer_social_linkedin",   93.5, 3518.0).  size("footer_social_linkedin",   4.5,  4.5).
+
+layer("footer_social_instagram", 2).  rotation("footer_social_instagram", 0.0).  anchor("footer_social_instagram", 0.5, 0.5).
+layer("footer_social_pinterest", 2).  rotation("footer_social_pinterest", 0.0).  anchor("footer_social_pinterest", 0.5, 0.5).
+layer("footer_social_houzz",     2).  rotation("footer_social_houzz",     0.0).  anchor("footer_social_houzz",     0.5, 0.5).
+layer("footer_social_linkedin",  2).  rotation("footer_social_linkedin",  0.0).  anchor("footer_social_linkedin",  0.5, 0.5).
+
+hover_scale("footer_social_instagram", 1.25, 1.25, 180.0, "ease-out").
+hover_scale("footer_social_pinterest", 1.25, 1.25, 180.0, "ease-out").
+hover_scale("footer_social_houzz",     1.25, 1.25, 180.0, "ease-out").
+hover_scale("footer_social_linkedin",  1.25, 1.25, 180.0, "ease-out").
+
+on_click("footer_social_instagram", "open_link").
+on_click("footer_social_pinterest", "open_link").
+on_click("footer_social_houzz",     "open_link").
+on_click("footer_social_linkedin",  "open_link").
+
+// — Bottom rule + copyright
+pos("footer_rule",    4.0, 3668.0).  size("footer_rule",   92.0,   1.0).
+layer("footer_rule",  2).             rotation("footer_rule",   0.0).  anchor("footer_rule", 0.0, 0.5).
+
+pos("footer_copyright",    4.0, 3678.0).  size("footer_copyright",   50.0,  14.0).
+layer("footer_copyright",  2).             rotation("footer_copyright",   0.0).  anchor("footer_copyright", 0.0, 0.0).
+
+in_section("footer_bg",               "sec_footer").
+in_section("footer_logo",             "sec_footer").
+in_section("footer_tagline",          "sec_footer").
+in_section("footer_contact_email",    "sec_footer").
+in_section("footer_contact_phone",    "sec_footer").
+in_section("footer_contact_address",  "sec_footer").
+in_section("footer_nav_home",         "sec_footer").
+in_section("footer_nav_about",        "sec_footer").
+in_section("footer_nav_services",     "sec_footer").
+in_section("footer_nav_process",      "sec_footer").
+in_section("footer_nav_projects",     "sec_footer").
+in_section("footer_nav_testimonials", "sec_footer").
+in_section("footer_nav_contact",      "sec_footer").
+in_section("footer_social_instagram", "sec_footer").
+in_section("footer_social_pinterest", "sec_footer").
+in_section("footer_social_houzz",     "sec_footer").
+in_section("footer_social_linkedin",  "sec_footer").
+in_section("footer_rule",             "sec_footer").
+in_section("footer_copyright",        "sec_footer").
+
+
+// ════════════════════════════════════════════════════════════
+// DERIVED RULES — Geometry, Parity & Validation
+// ════════════════════════════════════════════════════════════
+
+// ── Bounding box (axis-aligned, ignores rotation — for layout checking only)
+.decl bbox(id: EID, x0: float, y0: float, x1: float, y1: float)
+bbox(id, x, y, x+w, y+h) :-
+    pos(id, x, y),
+    size(id, w, h).
+
+// ── Right edge (% vw); > 100 = bleeds off right
+.decl right_edge(id: EID, xe: float)
+right_edge(id, x+w) :- pos(id, x, _), size(id, w, _).
+
+// ── Bottom edge (px from top)
+.decl bottom_edge(id: EID, ye: float)
+bottom_edge(id, y+h) :- pos(id, _, y), size(id, _, h).
+
+// ── Axis-aligned overlap between two distinct elements
+.decl overlaps_aa(a: EID, b: EID)
+overlaps_aa(a, b) :-
+    bbox(a, ax0, ay0, ax1, ay1),
+    bbox(b, bx0, by0, bx1, by1),
+    a != b,
+    ax0 < bx1, ax1 > bx0,
+    ay0 < by1, ay1 > by0.
+
+// ── Designer-declared intentional overlaps (suppresses unintentional_overlap warning)
+.decl intentional_overlap(a: EID, b: EID)
+intentional_overlap("hero_bg_image",     "hero_image_frame").
+intentional_overlap("hero_bg_image",     "hero_title_l1").
+intentional_overlap("hero_bg_image",     "hero_title_l2").
+intentional_overlap("hero_bg_image",     "hero_subtitle").
+intentional_overlap("hero_bg_image",     "hero_rule").
+intentional_overlap("hero_bg_image",     "hero_cta").
+intentional_overlap("hero_bg_image",     "hero_scroll_hint").
+intentional_overlap("about_image_main",  "about_image_accent").
+intentional_overlap("about_image_main",  "about_section_no").
+intentional_overlap("about_image_main",  "about_bg").
+intentional_overlap("projects_img_1",    "projects_img_2").
+intentional_overlap("projects_img_2",    "projects_img_3").
+intentional_overlap("projects_img_3",    "projects_img_4").
+intentional_overlap("testimonials_bg",   "testimonials_quote_mark").
+// All section_no decorative numbers are intentionally behind content
+intentional_overlap("services_section_no",   "services_title").
+intentional_overlap("process_section_no",    "process_title").
+intentional_overlap("projects_section_no",   "projects_title").
+intentional_overlap("testimonials_section_no","testimonials_quote").
+intentional_overlap("contact_section_no",    "contact_title").
+
+// ── Unintentional overlap: pairs that overlap but are NOT declared intentional
+//    Output this to catch layout errors
+.decl unintentional_overlap(a: EID, b: EID)
+unintentional_overlap(a, b) :-
+    overlaps_aa(a, b),
+    !intentional_overlap(a, b),
+    !intentional_overlap(b, a),
+    a < b.    // deduplicate (a,b) and (b,a)
+
+// ── Elements bleeding off the right edge (intentional ones are known)
+.decl bleeds_right(id: EID, xe: float)
+bleeds_right(id, xe) :- right_edge(id, xe), xe > 100.0.
+
+// ── Elements bleeding below scroll canvas
+.decl bleeds_bottom(id: EID, ye: float)
+bleeds_bottom(id, ye) :- bottom_edge(id, ye), scroll_height(h), ye > h.
+
+// ── Section element count (completeness audit)
+.decl section_element_count(sid: SID, label: symbol, n: number)
+section_element_count(sid, label, n) :-
+    section(sid, label, _),
+    n = count : { in_section(_, sid) }.
+
+// ── Parity: each declared element must have pos + size + layer + rotation
+.decl has_pos(id: EID)    has_pos(id)   :- pos(id, _, _).
+.decl has_size(id: EID)   has_size(id)  :- size(id, _, _).
+.decl has_layer(id: EID)  has_layer(id) :- layer(id, _).
+.decl has_rot(id: EID)    has_rot(id)   :- rotation(id, _).
+
+.decl layout_complete(id: EID)
+layout_complete(id) :-
+    element(id, _),
+    has_pos(id), has_size(id), has_layer(id), has_rot(id).
+
+.decl layout_incomplete(id: EID)
+layout_incomplete(id) :- element(id, _), !layout_complete(id).
+
+// ── Hover bounding box: effective screen area including hover translation offset
+//    Only handles single hover_translate per element (most common case)
+.decl hover_bbox(id: EID, x0: float, y0: float, x1: float, y1: float)
+hover_bbox(id, x0+dx, y0+dy, x1+dx, y1+dy) :-
+    bbox(id, x0, y0, x1, y1),
+    hover_translate(id, dx, dy, _, _).
+
+// ── Parallax drift: maximum vertical drift for parallax element over full scroll
+//    drift = scroll_height * |1 - speed| (rough bound; assumes element visible throughout)
+.decl parallax_drift_bound(id: EID, spd: float, max_drift: float)
+parallax_drift_bound(id, spd, drift) :-
+    parallax(id, spd),
+    scroll_height(sh),
+    drift = sh * (1.0 - spd).   // negative drift = floats up
+
+// ── Sticky elements: must have top_offset ≥ 0 (sanity check)
+.decl sticky_valid(id: EID)
+sticky_valid(id) :- sticky(id, off), off >= 0.0.
+
+.decl sticky_invalid(id: EID)
+sticky_invalid(id) :- sticky(id, _), !sticky_valid(id).
+
+// ── Elements with magnetic effect — their bbox is their "capture zone"
+.decl magnetic_zone(id: EID, x0: float, y0: float, x1: float, y1: float, dist: float)
+magnetic_zone(id, x0-dist, y0-dist, x1+dist, y1+dist, dist) :-
+    bbox(id, x0, y0, x1, y1),
+    magnetic(id, _, dist).
+
+
+// ════════════════════════════════════════════════════════════
+// OUTPUTS  (Souffle will write these as TSV files)
+// ════════════════════════════════════════════════════════════
+
+.output layout_incomplete        // PARITY: elements missing geometry declarations
+.output unintentional_overlap    // LAYOUT: unexpected overlaps to review
+.output bleeds_right             // INFO:   elements with off-page right bleed
+.output bleeds_bottom            // ERROR:  elements below scroll canvas
+.output sticky_invalid           // ERROR:  malformed sticky offsets
+.output section_element_count    // AUDIT:  how many elements per section
+.output hover_bbox               // DEBUG:  effective hover bounding boxes
+.output parallax_drift_bound     // DEBUG:  max vertical drift per parallax element
+.output magnetic_zone            // DEBUG:  cursor capture zones for magnetic elements

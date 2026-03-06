@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZELDA Design Co. — About / Magazine Section</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream:   #fdfaf5;
+    --ink:     #1a1714;
+    --gold:    #b89a6e;
+    --page-bg: #171410;
+  }
+
+  body {
+    background: var(--page-bg);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow-x: hidden;
+  }
+
+  /* ─── Simulated page context ──────────────────────── */
+  /* The section above (hero) */
+  .fake-hero {
+    height: 340px;
+    background: linear-gradient(180deg, #1a1410 0%, #12100e 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 0 60px 32px;
+    opacity: 0.6;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: #444;
+    text-transform: uppercase;
+  }
+
+  /* ─── About section wrapper ───────────────────────── */
+  .about-section {
+    position: relative;
+    padding: 0 0 120px;
+    background: var(--page-bg);
+    /* Extra height so the rotated magazine doesn't clip */
+    min-height: 900px;
+    overflow: visible;
+  }
+
+  /* ─── The magazine scene ──────────────────────────── */
+  /* Positioned so it overlaps slightly into the hero above */
+  .magazine-scene {
+    position: relative;
+    top: -60px;      /* bleeds up into the hero by 60px */
+    left: 50%;
+    transform: translateX(-50%) rotate(-3.5deg);
+    transform-origin: center top;
+    width: 82vw;
+    max-width: 1180px;
+    /* Realistic layered shadow — the big soft shadow + a sharper close shadow */
+    filter:
+      drop-shadow(0px 60px 120px rgba(0,0,0,0.65))
+      drop-shadow(0px 12px 28px rgba(0,0,0,0.45))
+      drop-shadow(0px 2px 4px  rgba(0,0,0,0.35));
+    z-index: 10;
+  }
+
+  /* ─── The physical magazine ───────────────────────── */
+  .magazine {
+    display: flex;
+    height: 700px;
+    border-radius: 1px 2px 2px 1px;
+    overflow: hidden;
+  }
+
+  /* ══ LEFT PAGE ══════════════════════════════════════ */
+  .page-left {
+    flex: 1;
+    position: relative;
+    background: #1a1410;
+    overflow: hidden;
+    /* Very slight page curl at bottom-left corner */
+    border-radius: 1px 0 0 3px;
+  }
+
+  .page-left img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    display: block;
+    /* Slight darkening of photo edges for depth */
+    filter: brightness(0.88) contrast(1.08);
+  }
+
+  /* Left page number */
+  .page-left .page-num {
+    position: absolute;
+    bottom: 13px;
+    right: 16px;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    font-weight: 300;
+  }
+
+  /* ══ SPINE ══════════════════════════════════════════ */
+  .spine {
+    width: 22px;
+    flex-shrink: 0;
+    background: linear-gradient(90deg,
+      #c8c0b4 0%,
+      #ede6dc 15%,
+      #f8f4ee 35%,
+      #fdfaf5 50%,
+      #f8f4ee 65%,
+      #e8e0d4 85%,
+      #c4bcb0 100%
+    );
+    /* Inner shadow to simulate page binding */
+    box-shadow:
+      inset -5px 0 10px rgba(0,0,0,0.12),
+      inset  5px 0 10px rgba(0,0,0,0.12),
+      inset  0   0  4px rgba(0,0,0,0.08);
+    position: relative;
+  }
+
+  /* Spine label — rotated publication name */
+  .spine::after {
+    content: 'INTERIORS QUARTERLY · Vol. XII';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    white-space: nowrap;
+    font-size: 6px;
+    letter-spacing: 0.2em;
+    color: rgba(100,88,76,0.45);
+    font-weight: 300;
+    text-transform: uppercase;
+  }
+
+  /* ══ RIGHT PAGE ══════════════════════════════════════ */
+  .page-right {
+    width: 420px;
+    flex-shrink: 0;
+    background: var(--cream);
+    padding: 32px 42px 28px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0 2px 2px 0;
+    /* Subtle inner-left shadow to reinforce the binding */
+    box-shadow: inset 8px 0 16px rgba(0,0,0,0.06);
+    /* Slight warm paper texture via noise gradient */
+    background-image:
+      linear-gradient(135deg, rgba(255,248,236,0.4) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(240,228,208,0.3) 0%, transparent 70%);
+  }
+
+  /* Top header bar */
+  .page-right .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 0.5px solid #d8cfc4;
+    margin-bottom: 22px;
+  }
+  .page-right .header-row .section-tag {
+    font-size: 8.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 300;
+  }
+  .page-right .header-row .issue-tag {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: #b0a898;
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  /* Section label above headline */
+  .section-label {
+    font-size: 8.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #b0a898;
+    font-weight: 300;
+    margin-bottom: 10px;
+  }
+
+  /* The big editorial headline */
+  .headline {
+    font-size: 38px;
+    font-weight: 600;
+    line-height: 1.06;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+    margin-bottom: 14px;
+  }
+
+  /* Byline */
+  .byline {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #a09080;
+    font-weight: 300;
+    margin-bottom: 14px;
+  }
+
+  /* Thin horizontal rule */
+  .editorial-rule {
+    height: 0.5px;
+    background: linear-gradient(90deg, var(--gold) 0%, #d8cfc4 60%, transparent 100%);
+    margin-bottom: 16px;
+  }
+
+  /* Body text — two columns */
+  .body-columns {
+    flex: 1;
+    column-count: 2;
+    column-gap: 22px;
+    column-rule: 0.5px solid #e0d8cc;
+    font-size: 12px;
+    line-height: 1.78;
+    color: #3a3028;
+    font-weight: 400;
+    overflow: hidden;
+  }
+
+  /* Dropcap on first paragraph */
+  .body-columns p:first-child::first-letter {
+    font-size: 54px;
+    font-weight: 700;
+    line-height: 0.78;
+    float: left;
+    margin-right: 5px;
+    margin-top: 6px;
+    color: var(--ink);
+  }
+
+  .body-columns p + p {
+    margin-top: 10px;
+  }
+
+  /* Pull quote — spans across column break */
+  .pull-quote {
+    column-span: all;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 300;
+    color: #5a4a38;
+    line-height: 1.55;
+    border-left: 1.5px solid var(--gold);
+    padding: 8px 0 8px 14px;
+    margin: 14px 0;
+  }
+
+  /* Signature */
+  .signature {
+    font-size: 13px;
+    font-style: italic;
+    font-weight: 300;
+    color: #a09080;
+    letter-spacing: 0.04em;
+    margin-top: auto;
+    padding-top: 14px;
+  }
+
+  /* Right page number */
+  .page-num-right {
+    position: absolute;
+    bottom: 13px;
+    right: 20px;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    color: #c0b8b0;
+    font-weight: 300;
+  }
+
+  /* ─── Page curl (bottom-right corner decorative shadow) ─ */
+  .page-right::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg,
+      transparent 50%,
+      rgba(0,0,0,0.04) 50%,
+      rgba(0,0,0,0.10) 100%
+    );
+    border-radius: 0 0 2px 0;
+  }
+
+  /* ─── Section label floating to the side ─────────────── */
+  /* The "ABOUT" rotated label on the far left, like in the controlnet */
+  .section-side-label {
+    position: absolute;
+    left: calc(50% - 41vw - 48px);
+    top: 340px;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #3a3028;
+    font-weight: 300;
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    white-space: nowrap;
+  }
+
+  /* ─── Toolbar ─────────────────────────────────────────── */
+  .toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 40px;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    z-index: 100;
+    border-bottom: 1px solid #222;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+  }
+  .toolbar span { color: #b89a6e; }
+  .toolbar .note { color: #444; font-size: 9px; margin-left: auto; }
+
+  /* ─── Rotation control ────────────────────────────────── */
+  .controls {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid #2a2a2a;
+    padding: 16px 20px;
+    z-index: 100;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: #888;
+  }
+  .controls label {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .controls input[type=range] { width: 100px; accent-color: #b89a6e; }
+  .controls .val { color: #b89a6e; min-width: 36px; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <span>ABOUT — MAGAZINE CONCEPT</span>
+  <div class="note">about_magazine.html · drag rotation slider ↘</div>
+</div>
+
+<!-- Simulated hero context above -->
+<div class="fake-hero" style="margin-top:40px">
+  ↑ hero section (scroll context)
+</div>
+
+<!-- About section -->
+<div class="about-section">
+
+  <!-- Rotated section label on left margin -->
+  <div class="section-side-label">About</div>
+
+  <!-- The magazine object -->
+  <div class="magazine-scene" id="magazine-scene">
+    <div class="magazine">
+
+      <!-- ══ LEFT PAGE: Photo ═══════════════════════════ -->
+      <div class="page-left">
+        <img src="../assets/originals/hollywood_hills_home.png"
+             alt="Zelda Design Co. — Featured Residence"
+             onerror="this.style.background='linear-gradient(160deg,#2a2218,#1a160e)';this.style.height='100%'">
+
+        <div class="page-num">12</div>
+      </div>
+
+      <!-- ══ SPINE ══════════════════════════════════════ -->
+      <div class="spine"></div>
+
+      <!-- ══ RIGHT PAGE: Editorial ══════════════════════ -->
+      <div class="page-right">
+
+        <div class="header-row">
+          <span class="section-tag">Profile · Designer</span>
+          <span class="issue-tag">Interiors Quarterly, Vol. XII</span>
+        </div>
+
+        <div class="section-label">About ZDC</div>
+
+        <div class="headline">Where History<br>Meets Home</div>
+
+        <div class="byline">Alessandra Lopez &nbsp;·&nbsp; Zelda Design Co., Glendora CA</div>
+
+        <div class="editorial-rule"></div>
+
+        <div class="body-columns">
+          <p>Zelda Design is a full-service residential design studio in Glendora, California, specializing in historic rehabilitation, new construction, and eclectic interiors. Led by Alessandra Lopez, we believe preservation and contemporary living should coexist beautifully.</p>
+
+          <div class="pull-quote">
+            "Preservation and contemporary living should coexist beautifully."
+          </div>
+
+          <p>Every project begins with listening — to the architecture, to the neighborhood, and to the people who will live there. We draw on a deep love of craft, materiality, and the layered histories that make a house feel genuinely alive.</p>
+
+          <p>Whether we're restoring original millwork in a 1920s Craftsman or sourcing furniture for a newly built home, our goal is always the same: spaces that feel considered, personal, and utterly yours.</p>
+        </div>
+
+        <div class="signature">— Alessandra Lopez</div>
+        <div class="page-num-right">13</div>
+      </div>
+
+    </div><!-- /.magazine -->
+  </div><!-- /.magazine-scene -->
+
+</div><!-- /.about-section -->
+
+<!-- Live rotation/tilt control -->
+<div class="controls">
+  <label>
+    Rotation
+    <input type="range" id="rot-slider" min="-12" max="0" value="-3.5" step="0.5">
+    <span class="val" id="rot-val">-3.5°</span>
+  </label>
+  <label>
+    Overlap
+    <input type="range" id="overlap-slider" min="-120" max="0" value="-60" step="4">
+    <span class="val" id="overlap-val">-60px</span>
+  </label>
+  <label>
+    Scale
+    <input type="range" id="scale-slider" min="60" max="100" value="82" step="1">
+    <span class="val" id="scale-val">82vw</span>
+  </label>
+</div>
+
+<script>
+  const scene = document.getElementById('magazine-scene');
+
+  function updateTransform() {
+    const rot     = document.getElementById('rot-slider').value;
+    const overlap = document.getElementById('overlap-slider').value;
+    const scale   = document.getElementById('scale-slider').value;
+
+    document.getElementById('rot-val').textContent     = rot + '°';
+    document.getElementById('overlap-val').textContent = overlap + 'px';
+    document.getElementById('scale-val').textContent   = scale + 'vw';
+
+    scene.style.top   = overlap + 'px';
+    scene.style.width = scale + 'vw';
+    scene.style.transform = `translateX(-50%) rotate(${rot}deg)`;
+  }
+
+  document.getElementById('rot-slider').addEventListener('input', updateTransform);
+  document.getElementById('overlap-slider').addEventListener('input', updateTransform);
+  document.getElementById('scale-slider').addEventListener('input', updateTransform);
+</script>
+</body>
+</html>

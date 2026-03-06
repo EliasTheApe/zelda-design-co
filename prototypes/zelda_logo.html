@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZELDA Design Co. — Logo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #f4ede2;
+    --ink:   #1a1714;
+    --gold:  #b89a6e;
+  }
+
+  body {
+    background: #111;
+    color: #e8e0d4;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Toolbar ───────────────────────────────────── */
+  header {
+    width: 100%;
+    padding: 18px 40px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #666;
+  }
+  header span { color: var(--gold); font-size: 12px; letter-spacing: 0.2em; }
+
+  .tabs { display: flex; gap: 2px; margin-left: auto; }
+  .tab {
+    padding: 8px 20px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #666;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab:hover  { background: #222; color: #aaa; }
+  .tab.active { background: #2a2520; border-color: var(--gold); color: var(--gold); }
+
+  /* ── Canvas ────────────────────────────────────── */
+  main {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    padding: 60px 40px;
+  }
+
+  /* ── Logo card ─────────────────────────────────── */
+  .logo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .logo-card .label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #444;
+    font-family: 'Courier New', monospace;
+  }
+
+  /* ── Solid version: cream background ──────────── */
+  .solid-wrap {
+    background: var(--cream);
+    padding: 40px 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .solid-wrap svg { color: var(--ink); }
+
+  /* ── Dark version: ink background ─────────────── */
+  .dark-wrap {
+    background: var(--ink);
+    padding: 40px 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dark-wrap svg { color: var(--cream); }
+
+  /* ── Mask version: dark bg, photo through letters  */
+  .mask-wrap {
+    background: #0c0c0c;
+    padding: 40px 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* ── Note ──────────────────────────────────────── */
+  .note {
+    max-width: 360px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #555;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.04em;
+    border-left: 1px solid #2a2a2a;
+    padding-left: 20px;
+  }
+  .note strong { color: var(--gold); display: block; margin-bottom: 8px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; }
+  .note code { color: #888; font-size: 11px; }
+
+  /* ── Panes: shown/hidden by tab ───────────────── */
+  .pane { display: none; width: 100%; }
+  .pane.visible { display: flex; }
+
+  /* ── Footer ────────────────────────────────────── */
+  footer {
+    width: 100%;
+    padding: 16px 40px;
+    border-top: 1px solid #1e1e1e;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #333;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Horizontal rule inside SVG is decorative ─── */
+</style>
+</head>
+<body>
+
+<header>
+  <span>ZELDA DESIGN CO. — LOGO SYSTEM</span>
+  <div class="tabs">
+    <button class="tab active" onclick="show('solid')">SOLID</button>
+    <button class="tab"        onclick="show('dark')">SOLID DARK</button>
+    <button class="tab"        onclick="show('mask')">WINDOW MASK</button>
+    <button class="tab"        onclick="show('both')">SIDE BY SIDE</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ SOLID (cream) ══════════════════════════════════ -->
+  <div class="pane visible" id="pane-solid">
+    <div class="logo-card">
+      <div class="solid-wrap">
+        <!-- ─ SVG A: Solid logo, cream background ─ -->
+        <svg viewBox="0 0 480 640" width="420" height="560"
+             xmlns="http://www.w3.org/2000/svg"
+             style="overflow:visible">
+          <text x="4"   y="190"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="700"
+                fill="currentColor">ZEL</text>
+
+          <text x="476" y="368"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="300"
+                text-anchor="end"
+                fill="currentColor">DA</text>
+
+          <line x1="4" y1="408" x2="476" y2="408"
+                stroke="currentColor" stroke-width="0.7" opacity="0.25"/>
+
+          <text x="4"  y="494"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="currentColor">des</text>
+
+          <text x="60" y="584"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="currentColor">ign</text>
+
+          <text x="4"  y="626"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="26" font-weight="300"
+                letter-spacing="5"
+                fill="currentColor">co.</text>
+        </svg>
+      </div>
+      <div class="label">solid — light</div>
+    </div>
+
+    <div class="note">
+      <strong>Typography</strong>
+      Cormorant Garamond — high contrast editorial serif.<br><br>
+      <code>ZEL</code> — 185px / weight 700 / left<br>
+      <code>DA</code>  — 185px / weight 300 / right<br>
+      <code>des</code> — 92px  / italic    / left<br>
+      <code>ign</code> — 92px  / italic    / indent 60px<br>
+      <code>co.</code> — 26px  / weight 300 / tracking 5<br><br>
+      ZEL bold vs DA light = tension between weight classes.<br>
+      des/ign lowercase = intimacy after the monumental caps.
+    </div>
+  </div>
+
+  <!-- ══ DARK ════════════════════════════════════════════ -->
+  <div class="pane" id="pane-dark">
+    <div class="logo-card">
+      <div class="dark-wrap">
+        <svg viewBox="0 0 480 640" width="420" height="560"
+             xmlns="http://www.w3.org/2000/svg"
+             style="overflow:visible">
+          <text x="4"   y="190"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="700"
+                fill="currentColor">ZEL</text>
+
+          <text x="476" y="368"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="300"
+                text-anchor="end"
+                fill="currentColor">DA</text>
+
+          <line x1="4" y1="408" x2="476" y2="408"
+                stroke="currentColor" stroke-width="0.7" opacity="0.25"/>
+
+          <text x="4"  y="494"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="currentColor">des</text>
+
+          <text x="60" y="584"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="currentColor">ign</text>
+
+          <text x="4"  y="626"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="26" font-weight="300"
+                letter-spacing="5"
+                fill="currentColor">co.</text>
+        </svg>
+      </div>
+      <div class="label">solid — dark</div>
+    </div>
+  </div>
+
+  <!-- ══ WINDOW MASK ═════════════════════════════════════ -->
+  <div class="pane" id="pane-mask">
+    <div class="logo-card">
+      <div class="mask-wrap">
+        <!--
+          WINDOW MASK: the photo only shows INSIDE the letter shapes.
+          Outside the letters = dark void.
+          Swap url(#room-gradient) for your image when ready.
+        -->
+        <svg viewBox="0 0 480 640" width="420" height="560"
+             xmlns="http://www.w3.org/2000/svg"
+             style="overflow:visible">
+          <defs>
+
+            <!-- Placeholder gradient — replace with your photo -->
+            <linearGradient id="room-gradient" x1="0.15" y1="0" x2="0.85" y2="1">
+              <stop offset="0%"   stop-color="#f0e4d0"/>
+              <stop offset="18%"  stop-color="#e2c898"/>
+              <stop offset="38%"  stop-color="#c8a060"/>
+              <stop offset="55%"  stop-color="#e8d0a0"/>
+              <stop offset="72%"  stop-color="#a07840"/>
+              <stop offset="88%"  stop-color="#c8a868"/>
+              <stop offset="100%" stop-color="#8a5c28"/>
+            </linearGradient>
+
+            <!-- Secondary highlight for depth -->
+            <radialGradient id="room-light" cx="35%" cy="25%" r="55%">
+              <stop offset="0%"   stop-color="#fff8e8" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#fff8e8" stop-opacity="0"/>
+            </radialGradient>
+
+            <!--
+              THE CLIP MASK — letter shapes define the "windows".
+              IMPORTANT: font attributes must exactly match the visible text above.
+            -->
+            <clipPath id="zelda-window">
+              <text x="4"   y="190"
+                    font-family="'Cormorant Garamond', Georgia, serif"
+                    font-size="185" font-weight="700">ZEL</text>
+              <text x="476" y="368"
+                    font-family="'Cormorant Garamond', Georgia, serif"
+                    font-size="185" font-weight="300"
+                    text-anchor="end">DA</text>
+              <text x="4"   y="494"
+                    font-family="'Cormorant Garamond', Georgia, serif"
+                    font-size="92" font-weight="400" font-style="italic">des</text>
+              <text x="60"  y="584"
+                    font-family="'Cormorant Garamond', Georgia, serif"
+                    font-size="92" font-weight="400" font-style="italic">ign</text>
+              <text x="4"   y="626"
+                    font-family="'Cormorant Garamond', Georgia, serif"
+                    font-size="26" font-weight="300" letter-spacing="5">co.</text>
+            </clipPath>
+
+          </defs>
+
+          <!--
+            When you have your photo: replace these two rects with:
+            <image href="your-photo.jpg" x="-40" y="-40" width="560" height="720"
+                   preserveAspectRatio="xMidYMid slice"
+                   clip-path="url(#zelda-window)"/>
+          -->
+
+          <!-- Hollywood Hills home — shows through the letter windows -->
+          <image href="../assets/originals/hollywood_hills_home.png"
+                 x="-40" y="-40" width="560" height="720"
+                 preserveAspectRatio="xMidYMid slice"
+                 clip-path="url(#zelda-window)"/>
+
+          <!--
+            Ghost outline: extremely faint letter outlines visible outside the clip.
+            Creates depth — you sense the full letterform even in the dark zone.
+            Optional: remove these if you want pure void outside the letters.
+          -->
+          <text x="4"   y="190"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="700"
+                fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.06">ZEL</text>
+          <text x="476" y="368"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="185" font-weight="300" text-anchor="end"
+                fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.06">DA</text>
+          <text x="4"   y="494"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.06">des</text>
+          <text x="60"  y="584"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="92" font-weight="400" font-style="italic"
+                fill="none" stroke="#ffffff" stroke-width="0.4" opacity="0.06">ign</text>
+          <text x="4"   y="626"
+                font-family="'Cormorant Garamond', Georgia, serif"
+                font-size="26" font-weight="300" letter-spacing="5"
+                fill="none" stroke="#ffffff" stroke-width="0.3" opacity="0.06">co.</text>
+
+          <!-- Thin rule (inside the mask, so visible only in the gap zone — decorative) -->
+          <line x1="4" y1="408" x2="476" y2="408"
+                stroke="#c8a060" stroke-width="0.6" opacity="0.35"
+                clip-path="none"/>
+
+        </svg>
+      </div>
+      <div class="label">window mask — photo through letters</div>
+    </div>
+
+    <div class="note">
+      <strong>How to swap in your photo</strong>
+      Replace the two <code>&lt;rect&gt;</code> elements inside the SVG with:<br><br>
+      <code>
+        &lt;image href="<em>your-room.jpg</em>"<br>
+        &nbsp;&nbsp;x="-40" y="-40"<br>
+        &nbsp;&nbsp;width="560" height="720"<br>
+        &nbsp;&nbsp;preserveAspectRatio="xMidYMid slice"<br>
+        &nbsp;&nbsp;clip-path="url(#zelda-window)"/&gt;
+      </code><br><br>
+      The photo will only show <em>inside</em> the letter shapes.<br>
+      Parallax: set the photo to move at 0.55× scroll speed,<br>
+      the letter outlines at 1.0× — the room drifts behind<br>
+      the windows as you scroll.
+    </div>
+  </div>
+
+  <!-- ══ SIDE BY SIDE ════════════════════════════════════ -->
+  <div class="pane" id="pane-both">
+    <div class="logo-card">
+      <div class="solid-wrap">
+        <svg viewBox="0 0 480 640" width="280" height="373"
+             xmlns="http://www.w3.org/2000/svg">
+          <text x="4" y="190" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="700" fill="currentColor">ZEL</text>
+          <text x="476" y="368" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="300" text-anchor="end" fill="currentColor">DA</text>
+          <line x1="4" y1="408" x2="476" y2="408" stroke="currentColor" stroke-width="0.7" opacity="0.25"/>
+          <text x="4" y="494" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="currentColor">des</text>
+          <text x="60" y="584" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="currentColor">ign</text>
+          <text x="4" y="626" font-family="'Cormorant Garamond',Georgia,serif" font-size="26" font-weight="300" letter-spacing="5" fill="currentColor">co.</text>
+        </svg>
+      </div>
+      <div class="label">solid — light</div>
+    </div>
+
+    <div class="logo-card">
+      <div class="dark-wrap">
+        <svg viewBox="0 0 480 640" width="280" height="373"
+             xmlns="http://www.w3.org/2000/svg">
+          <text x="4" y="190" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="700" fill="currentColor">ZEL</text>
+          <text x="476" y="368" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="300" text-anchor="end" fill="currentColor">DA</text>
+          <line x1="4" y1="408" x2="476" y2="408" stroke="currentColor" stroke-width="0.7" opacity="0.25"/>
+          <text x="4" y="494" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="currentColor">des</text>
+          <text x="60" y="584" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="currentColor">ign</text>
+          <text x="4" y="626" font-family="'Cormorant Garamond',Georgia,serif" font-size="26" font-weight="300" letter-spacing="5" fill="currentColor">co.</text>
+        </svg>
+      </div>
+      <div class="label">solid — dark</div>
+    </div>
+
+    <div class="logo-card">
+      <div class="mask-wrap">
+        <svg viewBox="0 0 480 640" width="280" height="373"
+             xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="rg2" x1="0.15" y1="0" x2="0.85" y2="1">
+              <stop offset="0%"   stop-color="#f0e4d0"/>
+              <stop offset="30%"  stop-color="#c8a060"/>
+              <stop offset="60%"  stop-color="#e8d0a0"/>
+              <stop offset="100%" stop-color="#8a5c28"/>
+            </linearGradient>
+            <radialGradient id="rl2" cx="35%" cy="25%" r="55%">
+              <stop offset="0%"   stop-color="#fff8e8" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#fff8e8" stop-opacity="0"/>
+            </radialGradient>
+            <clipPath id="zw2">
+              <text x="4" y="190" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="700">ZEL</text>
+              <text x="476" y="368" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="300" text-anchor="end">DA</text>
+              <text x="4" y="494" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic">des</text>
+              <text x="60" y="584" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic">ign</text>
+              <text x="4" y="626" font-family="'Cormorant Garamond',Georgia,serif" font-size="26" font-weight="300" letter-spacing="5">co.</text>
+            </clipPath>
+          </defs>
+          <image href="../assets/originals/hollywood_hills_home.png" x="-40" y="-40" width="560" height="720"
+                 preserveAspectRatio="xMidYMid slice" clip-path="url(#zw2)"/>
+          <text x="4" y="190" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="700" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.06">ZEL</text>
+          <text x="476" y="368" font-family="'Cormorant Garamond',Georgia,serif" font-size="185" font-weight="300" text-anchor="end" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.06">DA</text>
+          <text x="4" y="494" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="none" stroke="#fff" stroke-width="0.4" opacity="0.06">des</text>
+          <text x="60" y="584" font-family="'Cormorant Garamond',Georgia,serif" font-size="92" font-style="italic" fill="none" stroke="#fff" stroke-width="0.4" opacity="0.06">ign</text>
+          <text x="4" y="626" font-family="'Cormorant Garamond',Georgia,serif" font-size="26" font-weight="300" letter-spacing="5" fill="none" stroke="#fff" stroke-width="0.3" opacity="0.06">co.</text>
+          <line x1="4" y1="408" x2="476" y2="408" stroke="#c8a060" stroke-width="0.6" opacity="0.35"/>
+        </svg>
+      </div>
+      <div class="label">window mask</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>zelda_logo.html — controlnet source: controlnet.dl § logo_*</span>
+  <span>Cormorant Garamond · Google Fonts · SVG clipPath</span>
+</footer>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('pane-' + id).classList.add('visible');
+    event.target.classList.add('active');
+  }
+</script>
+</body>
+</html>

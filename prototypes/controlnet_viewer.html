@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Controlnet Viewer — Interior Designer Landing Page</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #1c1c1c;
+    font-family: 'Courier New', Courier, monospace;
+    color: #e0dcd4;
+  }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    flex: 0 0 44px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 16px;
+    background: #111;
+    border-bottom: 1px solid #333;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+  #toolbar .logo {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    color: #c8b090;
+    flex-shrink: 0;
+  }
+  #toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #aaa;
+    user-select: none;
+  }
+  #toolbar label:hover { color: #e0dcd4; }
+  #toolbar input[type=range] { width: 80px; accent-color: #c8b090; }
+  #toolbar input[type=checkbox] { accent-color: #c8b090; }
+  #cursor-pos {
+    margin-left: auto;
+    color: #666;
+    font-size: 10px;
+    min-width: 180px;
+    text-align: right;
+  }
+
+  /* ── Main area ── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Canvas panel ── */
+  #canvas-panel {
+    flex: 0 0 auto;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    background: #141414;
+    border-right: 1px solid #333;
+    padding: 12px;
+  }
+  #canvas-panel canvas {
+    display: block;
+    cursor: crosshair;
+  }
+
+  /* ── Info panel ── */
+  #info-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #1a1a1a;
+    min-width: 280px;
+  }
+  #info-panel h2 {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+  }
+  .hint {
+    color: #555;
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .prop-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+    border-bottom: 1px solid #222;
+    font-size: 11px;
+  }
+  .prop-row .key { color: #888; }
+  .prop-row .val { color: #c8b090; font-weight: bold; }
+  .prop-section {
+    margin-top: 14px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #555;
+  }
+  .badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Legend ── */
+  #legend {
+    margin-top: 24px;
+    font-size: 10px;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    color: #888;
+  }
+  .legend-swatch {
+    width: 28px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .legend-badge {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 14px;
+    font-size: 8px;
+    font-weight: bold;
+  }
+  #scroll-ruler {
+    margin-top: 20px;
+    font-size: 10px;
+    color: #555;
+  }
+  #scroll-ruler div { padding: 2px 0; }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ────────────────────────────────────────────── -->
+<div id="toolbar">
+  <span class="logo">◈ CONTROLNET VIEWER</span>
+
+  <label>
+    Zoom
+    <input type="range" id="zoom-slider" min="20" max="65" value="35">
+    <span id="zoom-val">35%</span>
+  </label>
+
+  <label><input type="checkbox" id="tog-sections" checked> Section bands</label>
+  <label><input type="checkbox" id="tog-labels" checked> Labels</label>
+  <label><input type="checkbox" id="tog-hover-bbox" checked> Hover BBox</label>
+  <label><input type="checkbox" id="tog-badges" checked> FX badges</label>
+  <label><input type="checkbox" id="tog-z" checked> Z-order opacity</label>
+  <label><input type="checkbox" id="tog-rulers" checked> Rulers</label>
+
+  <span id="cursor-pos">x: — &nbsp; y: — &nbsp; (vw%  /  px)</span>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────── -->
+<div id="main">
+
+  <div id="canvas-panel">
+    <canvas id="c"></canvas>
+  </div>
+
+  <div id="info-panel">
+    <h2>Element Inspector</h2>
+    <div id="element-info">
+      <p class="hint">Hover over a box to inspect it.<br>Click to pin the selection.</p>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div class="prop-section">Section colors</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4a3a2a"></div> HOME / NAV</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2a3a2a"></div> ABOUT</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#3a2a30"></div> SERVICES</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2a2e3a"></div> PROCESS</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#3a2e20"></div> PROJECTS</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2e2a3a"></div> TESTIMONIALS</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#2e2e2a"></div> CONTACT</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#222"></div> FOOTER</div>
+
+      <div class="prop-section" style="margin-top:16px">FX badges</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#0af">P</span> Parallax</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#fa0">M</span> Magnetic</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#0d0">H</span> Hover effect</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#08f">S</span> Scroll animation</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#f60">C</span> Click action</div>
+      <div class="legend-row"><span class="legend-badge" style="background:#e0e">★</span> Sticky</div>
+
+      <div class="prop-section" style="margin-top:16px">Element kinds</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#6090a8"></div> image</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#c06040"></div> button</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#8a9080"></div> text</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#505050"></div> rule</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#6880a8"></div> social_link</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#c8b090"></div> nav / menu_item</div>
+    </div>
+
+    <!-- Scroll ruler reference -->
+    <div id="scroll-ruler">
+      <div class="prop-section">Scroll reference</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// ELEMENT DATA  (extracted from controlnet.dl)
+// x, w = % of viewport width   y, h = px from page top
+// ax, ay = transform-origin (0–1 within element)
+// fx = interactions
+// ══════════════════════════════════════════════════════════════
+
+const VW_BASE = 1440;
+const SCROLL_H = 3700;
+
+const SECTIONS = [
+  { id: "sec_home",         label: "HOME",         y: 0,    h: 900  },
+  { id: "sec_about",        label: "ABOUT",        y: 900,  h: 600  },
+  { id: "sec_services",     label: "SERVICES",     y: 1500, h: 600  },
+  { id: "sec_process",      label: "PROCESS",      y: 2100, h: 560  },
+  { id: "sec_projects",     label: "PROJECTS",     y: 2660, h: 400  },
+  { id: "sec_testimonials", label: "TESTIMONIALS", y: 3060, h: 200  },
+  { id: "sec_contact",      label: "CONTACT",      y: 3260, h: 240  },
+  { id: "sec_footer",       label: "FOOTER",       y: 3500, h: 200  },
+];
+
+const SECTION_BG = {
+  sec_home:         'rgba(74,58,42,0.55)',
+  sec_about:        'rgba(42,58,42,0.55)',
+  sec_services:     'rgba(58,42,48,0.55)',
+  sec_process:      'rgba(42,46,58,0.55)',
+  sec_projects:     'rgba(58,46,32,0.55)',
+  sec_testimonials: 'rgba(46,42,58,0.55)',
+  sec_contact:      'rgba(46,46,42,0.55)',
+  sec_footer:       'rgba(28,28,26,0.8)',
+};
+
+const SECTION_STROKE = {
+  sec_home:         '#c8a060',
+  sec_about:        '#80b880',
+  sec_services:     '#b880a0',
+  sec_process:      '#8098c8',
+  sec_projects:     '#c8a060',
+  sec_testimonials: '#a080c8',
+  sec_contact:      '#a0a898',
+  sec_footer:       '#606060',
+};
+
+const KIND_FILL = {
+  nav:          'rgba(200,176,144,0.22)',
+  hero:         'rgba(200,176,144,0.18)',
+  section:      'rgba(255,255,255,0.04)',
+  text:         'rgba(138,144,128,0.25)',
+  image:        'rgba(96,144,168,0.30)',
+  button:       'rgba(192,96,64,0.40)',
+  rule:         'rgba(140,140,130,0.55)',
+  icon:         'rgba(110,120,140,0.35)',
+  menu_item:    'rgba(200,176,144,0.30)',
+  footer_link:  'rgba(128,136,128,0.30)',
+  social_link:  'rgba(104,128,168,0.45)',
+  footer:       'rgba(30,30,28,0.7)',
+  overlay:      'rgba(200,200,64,0.30)',
+};
+
+const KIND_STROKE = {
+  nav:         '#c8b090',
+  section:     '#383830',
+  text:        '#8a9080',
+  image:       '#6090a8',
+  button:      '#c06040',
+  rule:        '#909080',
+  menu_item:   '#c8b090',
+  footer_link: '#808880',
+  social_link: '#6880a8',
+  footer:      '#505048',
+};
+
+// fx shortcuts:
+//   P = parallax(speed)
+//   M = magnetic([strength, dist])
+//   H = any hover_*
+//   S = scroll_fade_in or scroll_slide_in
+//   C = on_click(action)
+//   sticky = true/false
+
+const EL = [
+// ─── NAV ─────────────────────────────────────────────────────────────────
+{id:"nav_bar",           kind:"nav",       sid:"sec_home",   x:0,    y:0,    w:100,  h:72,   rot:0,   ax:0,   ay:0,   z:100, alpha:0.97, sticky:true,  fx:{H:true}},
+{id:"nav_logo",          kind:"text",      sid:"sec_home",   x:3.5,  y:16,   w:14,   h:40,   rot:0,   ax:0,   ay:0.5, z:101, fx:{}},
+{id:"nav_menu",          kind:"nav",       sid:"sec_home",   x:35,   y:20,   w:62,   h:32,   rot:0,   ax:0,   ay:0.5, z:101, fx:{}},
+{id:"nav_item_home",         kind:"menu_item", sid:"sec_home", x:36,   y:24, w:6,    h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_home"}},
+{id:"nav_item_about",        kind:"menu_item", sid:"sec_home", x:44,   y:24, w:6,    h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_about"}},
+{id:"nav_item_services",     kind:"menu_item", sid:"sec_home", x:52,   y:24, w:7.5,  h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_services"}},
+{id:"nav_item_process",      kind:"menu_item", sid:"sec_home", x:61,   y:24, w:7,    h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_process"}},
+{id:"nav_item_projects",     kind:"menu_item", sid:"sec_home", x:69.5, y:24, w:7,    h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_projects"}},
+{id:"nav_item_testimonials", kind:"menu_item", sid:"sec_home", x:78,   y:24, w:10.5, h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_testimonials"}},
+{id:"nav_item_contact",      kind:"menu_item", sid:"sec_home", x:90.5, y:24, w:6.5,  h:24, rot:0, ax:0.5, ay:0.5, z:102, fx:{H:true, C:"scroll_to:sec_contact"}},
+// ─── HERO ────────────────────────────────────────────────────────────────
+{id:"hero_bg_image",    kind:"image",   sid:"sec_home", x:40,  y:0,   w:72,  h:900, rot:0,    ax:0,   ay:0,   z:1, fx:{P:0.4}},
+{id:"hero_image_frame", kind:"image",   sid:"sec_home", x:52,  y:180, w:28,  h:470, rot:2.5,  ax:0.5, ay:0.5, z:3, fx:{P:0.65}},
+// ─── LOGO (replaces hero_title_l1/l2) — zelda_logo.html ──────────────────
+// SVG viewBox 0 0 480 640 → page: x=3–33vw, y=100–680px (scale 0.9)
+// logo_zel  = "ZEL"  185px/700wt  left     svg_y=57–190  → page y=151–271
+// logo_da   = "DA"   185px/300wt  right    svg_y=232–368 → page y=309–431
+// logo_rule = thin rule                    svg_y=408     → page y=467
+// logo_des  = "des"  92px/italic  left     svg_y=428–494 → page y=479–545
+// logo_ign  = "ign"  92px/italic  +3.75vw  svg_y=518–584 → page y=559–625
+// logo_co   = "co."  26px/300wt   left     svg_y=607–626 → page y=644–663
+{id:"logo_container",  kind:"overlay", sid:"sec_home", x:3.0,  y:100, w:30.0, h:580, rot:0, ax:0,   ay:0,   z:5,  fx:{S:true}},
+{id:"logo_mask_photo", kind:"image",   sid:"sec_home", x:3.0,  y:80,  w:30.0, h:620, rot:0, ax:0,   ay:0,   z:4,  fx:{P:0.55}},
+{id:"logo_zel",        kind:"text",    sid:"sec_home", x:3.0,  y:151, w:29.0, h:120, rot:0, ax:0,   ay:1.0, z:6,  fx:{S:true}},
+{id:"logo_da",         kind:"text",    sid:"sec_home", x:14.5, y:309, w:18.5, h:122, rot:0, ax:1.0, ay:1.0, z:6,  fx:{S:true}},
+{id:"logo_rule",       kind:"rule",    sid:"sec_home", x:3.0,  y:467, w:27.0, h:1,   rot:0, ax:0,   ay:0.5, z:6,  fx:{}},
+{id:"logo_des",        kind:"text",    sid:"sec_home", x:3.0,  y:479, w:21.0, h:66,  rot:0, ax:0,   ay:1.0, z:6,  fx:{S:true}},
+{id:"logo_ign",        kind:"text",    sid:"sec_home", x:6.75, y:559, w:17.25,h:66,  rot:0, ax:0,   ay:1.0, z:6,  fx:{S:true}},
+{id:"logo_co",         kind:"text",    sid:"sec_home", x:3.0,  y:644, w:9.0,  h:22,  rot:0, ax:0,   ay:1.0, z:6,  fx:{S:true}},
+{id:"hero_rule",        kind:"rule",    sid:"sec_home", x:3.5, y:494, w:20,  h:1,   rot:0,    ax:0,   ay:0.5, z:5, fx:{}},
+{id:"hero_subtitle",    kind:"text",    sid:"sec_home", x:3.5, y:510, w:32,  h:36,  rot:0,    ax:0,   ay:0.5, z:5, fx:{S:true}},
+{id:"hero_cta",         kind:"button",  sid:"sec_home", x:3.5, y:576, w:14,  h:52,  rot:0,    ax:0.5, ay:0.5, z:5, fx:{H:true, M:[0.3,80], C:"scroll_to:sec_projects"}},
+{id:"hero_scroll_hint", kind:"text",    sid:"sec_home", x:47,  y:838, w:6,   h:36,  rot:0,    ax:0.5, ay:0.5, z:5, fx:{H:true}},
+// ─── ABOUT ───────────────────────────────────────────────────────────────
+{id:"about_bg",           kind:"section", sid:"sec_about", x:0,   y:900,  w:100, h:600, rot:0,   ax:0,   ay:0,   z:0, fx:{}},
+{id:"about_section_no",   kind:"text",    sid:"sec_about", x:-1.5,y:910,  w:18,  h:160, rot:0,   ax:0,   ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"about_label",        kind:"text",    sid:"sec_about", x:1.5, y:1100, w:6,   h:24,  rot:-90, ax:0.5, ay:0.5, z:4, fx:{}},
+{id:"about_image_main",   kind:"image",   sid:"sec_about", x:4,   y:870,  w:38,  h:520, rot:-1.5,ax:0.5, ay:0.5, z:3, fx:{P:0.85,S:true}},
+{id:"about_image_accent", kind:"image",   sid:"sec_about", x:34,  y:1240, w:16,  h:200, rot:4,   ax:0.5, ay:0.5, z:4, fx:{H:true,S:true}},
+// ─── ABOUT — Magazine spread ──────────────────────────────────────────────
+// about_mag_scene rotates -3.5° around its top-center, bleeds into hero above
+{id:"about_mag_scene",    kind:"overlay", sid:"sec_about", x:9,    y:840,  w:82,  h:700, rot:-3.5, ax:0.5, ay:0,   z:10, fx:{S:true}},
+{id:"about_mag_left",     kind:"image",   sid:"sec_about", x:9,    y:840,  w:39,  h:700, rot:0,    ax:0,   ay:0,   z:11, fx:{}},
+{id:"about_mag_spine",    kind:"rule",    sid:"sec_about", x:48,   y:840,  w:1.5, h:700, rot:0,    ax:0,   ay:0,   z:11, fx:{}},
+{id:"about_mag_right",    kind:"section", sid:"sec_about", x:49.5, y:840,  w:41.5,h:700, rot:0,    ax:0,   ay:0,   z:11, fx:{}},
+{id:"about_mag_header",   kind:"text",    sid:"sec_about", x:49.5, y:872,  w:41.5,h:18,  rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+{id:"about_mag_headline", kind:"text",    sid:"sec_about", x:49.5, y:920,  w:41.5,h:100, rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+{id:"about_mag_byline",   kind:"text",    sid:"sec_about", x:49.5, y:1028, w:41.5,h:16,  rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+{id:"about_mag_rule",     kind:"rule",    sid:"sec_about", x:49.5, y:1050, w:38,  h:1,   rot:0,    ax:0,   ay:0.5, z:12, fx:{}},
+{id:"about_mag_body",     kind:"text",    sid:"sec_about", x:49.5, y:1068, w:41.5,h:320, rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+{id:"about_mag_pullquote",kind:"text",    sid:"sec_about", x:49.5, y:1180, w:38,  h:60,  rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+{id:"about_mag_signature",kind:"text",    sid:"sec_about", x:49.5, y:1490, w:30,  h:22,  rot:0,    ax:0,   ay:0,   z:12, fx:{}},
+// ─── SERVICES ────────────────────────────────────────────────────────────
+{id:"services_bg",           kind:"section", sid:"sec_services", x:0,    y:1500, w:100, h:600, rot:0, ax:0,   ay:0,   z:0, fx:{}},
+{id:"services_section_no",   kind:"text",    sid:"sec_services", x:-1.5, y:1510, w:18,  h:160, rot:0, ax:0,   ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"services_label",        kind:"text",    sid:"sec_services", x:1.5,  y:1700, w:6,   h:24,  rot:-90,ax:0.5,ay:0.5, z:4, fx:{}},
+{id:"services_title",        kind:"text",    sid:"sec_services", x:10,   y:1540, w:55,  h:76,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_rule",         kind:"rule",    sid:"sec_services", x:10,   y:1624, w:6,   h:1,   rot:0, ax:0,   ay:0.5, z:4, fx:{}},
+{id:"services_card_1",       kind:"image",   sid:"sec_services", x:8,    y:1660, w:24,  h:310, rot:-1,  ax:0.5,ay:0.5, z:3, fx:{H:true,S:true}},
+{id:"services_card_2",       kind:"image",   sid:"sec_services", x:38,   y:1700, w:24,  h:310, rot:0,   ax:0.5,ay:0.5, z:3, fx:{H:true,S:true}},
+{id:"services_card_3",       kind:"image",   sid:"sec_services", x:68,   y:1670, w:24,  h:310, rot:1.5, ax:0.5,ay:0.5, z:3, fx:{H:true,S:true}},
+{id:"services_card_1_title", kind:"text",    sid:"sec_services", x:8.5,  y:1984, w:23,  h:28,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_card_2_title", kind:"text",    sid:"sec_services", x:38.5, y:2024, w:23,  h:28,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_card_3_title", kind:"text",    sid:"sec_services", x:68.5, y:1994, w:23,  h:28,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_card_1_body",  kind:"text",    sid:"sec_services", x:8.5,  y:2020, w:23,  h:48,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_card_2_body",  kind:"text",    sid:"sec_services", x:38.5, y:2060, w:23,  h:48,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"services_card_3_body",  kind:"text",    sid:"sec_services", x:68.5, y:2030, w:23,  h:48,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+// ─── PROCESS ─────────────────────────────────────────────────────────────
+{id:"process_bg",        kind:"section", sid:"sec_process", x:0,    y:2100, w:100, h:560, rot:0, ax:0,   ay:0,   z:0, fx:{}},
+{id:"process_section_no",kind:"text",    sid:"sec_process", x:-1.5, y:2110, w:18,  h:160, rot:0, ax:0,   ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"process_label",     kind:"text",    sid:"sec_process", x:1.5,  y:2330, w:6,   h:24,  rot:-90,ax:0.5,ay:0.5, z:4, fx:{}},
+{id:"process_title",     kind:"text",    sid:"sec_process", x:10,   y:2140, w:55,  h:76,  rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"process_rule",      kind:"rule",    sid:"sec_process", x:10,   y:2224, w:6,   h:1,   rot:0, ax:0,   ay:0.5, z:4, fx:{}},
+{id:"process_connector", kind:"rule",    sid:"sec_process", x:10,   y:2396, w:80,  h:1,   rot:0, ax:0,   ay:0.5, z:2, fx:{}},
+{id:"process_step_1_no", kind:"text",    sid:"sec_process", x:11,   y:2340, w:8,   h:56,  rot:0, ax:0.5, ay:1,   z:3, fx:{}},
+{id:"process_step_2_no", kind:"text",    sid:"sec_process", x:34.5, y:2340, w:8,   h:56,  rot:0, ax:0.5, ay:1,   z:3, fx:{}},
+{id:"process_step_3_no", kind:"text",    sid:"sec_process", x:58,   y:2340, w:8,   h:56,  rot:0, ax:0.5, ay:1,   z:3, fx:{}},
+{id:"process_step_4_no", kind:"text",    sid:"sec_process", x:81.5, y:2340, w:8,   h:56,  rot:0, ax:0.5, ay:1,   z:3, fx:{}},
+{id:"process_step_1",    kind:"text",    sid:"sec_process", x:8,    y:2412, w:18,  h:160, rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"process_step_2",    kind:"text",    sid:"sec_process", x:31.5, y:2412, w:18,  h:160, rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"process_step_3",    kind:"text",    sid:"sec_process", x:55,   y:2412, w:18,  h:160, rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"process_step_4",    kind:"text",    sid:"sec_process", x:78.5, y:2412, w:18,  h:160, rot:0, ax:0,   ay:0,   z:4, fx:{S:true}},
+// ─── PROJECTS ────────────────────────────────────────────────────────────
+{id:"projects_bg",         kind:"section", sid:"sec_projects", x:0,   y:2660, w:100, h:400, rot:0,    ax:0,   ay:0,   z:0, fx:{}},
+{id:"projects_section_no", kind:"text",    sid:"sec_projects", x:-1.5,y:2670, w:18,  h:160, rot:0,    ax:0,   ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"projects_label",      kind:"text",    sid:"sec_projects", x:1.5, y:2830, w:6,   h:24,  rot:-90,  ax:0.5, ay:0.5, z:4, fx:{}},
+{id:"projects_title",      kind:"text",    sid:"sec_projects", x:10,  y:2690, w:50,  h:66,  rot:0,    ax:0,   ay:0,   z:4, fx:{S:true}},
+{id:"projects_rule",       kind:"rule",    sid:"sec_projects", x:10,  y:2764, w:6,   h:1,   rot:0,    ax:0,   ay:0.5, z:4, fx:{}},
+{id:"projects_img_1",      kind:"image",   sid:"sec_projects", x:7,   y:2780, w:40,  h:220, rot:-2,   ax:0.5, ay:0.5, z:2, fx:{P:0.9, H:true}},
+{id:"projects_img_2",      kind:"image",   sid:"sec_projects", x:34,  y:2810, w:30,  h:200, rot:3,    ax:0.5, ay:0.5, z:4, fx:{P:0.8, H:true}},
+{id:"projects_img_3",      kind:"image",   sid:"sec_projects", x:60,  y:2760, w:22,  h:250, rot:1,    ax:0.5, ay:0.5, z:3, fx:{P:0.95,H:true}},
+{id:"projects_img_4",      kind:"image",   sid:"sec_projects", x:80,  y:2870, w:24,  h:150, rot:-3.5, ax:0.5, ay:0.5, z:2, fx:{P:1.05,H:true}},
+{id:"projects_cta",        kind:"button",  sid:"sec_projects", x:43,  y:3010, w:14,  h:48,  rot:0,    ax:0.5, ay:0.5, z:5, fx:{H:true,M:[0.3,80],C:"open_modal"}},
+// ─── TESTIMONIALS ─────────────────────────────────────────────────────────
+{id:"testimonials_bg",          kind:"section", sid:"sec_testimonials", x:0,   y:3060, w:100, h:200, rot:0, ax:0,   ay:0,   z:0, fx:{}},
+{id:"testimonials_section_no",  kind:"text",    sid:"sec_testimonials", x:-1.5,y:3070, w:18,  h:160, rot:0, ax:0,   ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"testimonials_label",       kind:"text",    sid:"sec_testimonials", x:1.5, y:3140, w:6,   h:24,  rot:-90,ax:0.5,ay:0.5, z:4, fx:{}},
+{id:"testimonials_quote_mark",  kind:"text",    sid:"sec_testimonials", x:18,  y:3072, w:10,  h:96,  rot:0, ax:0,   ay:0,   z:2, alpha:0.14, fx:{}},
+{id:"testimonials_quote",       kind:"text",    sid:"sec_testimonials", x:20,  y:3150, w:60,  h:96,  rot:0, ax:0.5, ay:0,   z:4, fx:{S:true}},
+{id:"testimonials_attribution", kind:"text",    sid:"sec_testimonials", x:20,  y:3258, w:60,  h:24,  rot:0, ax:0.5, ay:0,   z:4, fx:{S:true}},
+{id:"testimonials_dots",        kind:"text",    sid:"sec_testimonials", x:47,  y:3302, w:6,   h:14,  rot:0, ax:0.5, ay:0.5, z:4, fx:{}},
+// ─── CONTACT ─────────────────────────────────────────────────────────────
+{id:"contact_bg",           kind:"section", sid:"sec_contact", x:0,  y:3260, w:100, h:240, rot:0, ax:0, ay:0,   z:0, fx:{}},
+{id:"contact_section_no",   kind:"text",    sid:"sec_contact", x:-1.5,y:3270,w:18,  h:120, rot:0, ax:0, ay:0,   z:1, alpha:0.07, fx:{}},
+{id:"contact_label",        kind:"text",    sid:"sec_contact", x:1.5, y:3360, w:6,   h:24,  rot:-90,ax:0.5,ay:0.5,z:4, fx:{}},
+{id:"contact_title",        kind:"text",    sid:"sec_contact", x:10,  y:3290, w:34,  h:60,  rot:0, ax:0, ay:0,   z:4, fx:{S:true}},
+{id:"contact_rule",         kind:"rule",    sid:"sec_contact", x:10,  y:3358, w:6,   h:1,   rot:0, ax:0, ay:0.5, z:4, fx:{}},
+{id:"contact_email_link",   kind:"text",    sid:"sec_contact", x:10,  y:3372, w:26,  h:22,  rot:0, ax:0, ay:0,   z:4, fx:{H:true,C:"open_link"}},
+{id:"contact_phone",        kind:"text",    sid:"sec_contact", x:10,  y:3404, w:20,  h:22,  rot:0, ax:0, ay:0,   z:4, fx:{}},
+{id:"contact_address",      kind:"text",    sid:"sec_contact", x:10,  y:3434, w:26,  h:38,  rot:0, ax:0, ay:0,   z:4, fx:{}},
+{id:"contact_form_name",    kind:"text",    sid:"sec_contact", x:54,  y:3290, w:38,  h:40,  rot:0, ax:0, ay:0,   z:4, fx:{}},
+{id:"contact_form_email",   kind:"text",    sid:"sec_contact", x:54,  y:3338, w:38,  h:40,  rot:0, ax:0, ay:0,   z:4, fx:{}},
+{id:"contact_form_message", kind:"text",    sid:"sec_contact", x:54,  y:3386, w:38,  h:66,  rot:0, ax:0, ay:0,   z:4, fx:{}},
+{id:"contact_form_submit",  kind:"button",  sid:"sec_contact", x:54,  y:3464, w:15,  h:44,  rot:0, ax:0, ay:0.5, z:5, fx:{H:true,M:[0.25,70],C:"submit_form"}},
+// ─── FOOTER ──────────────────────────────────────────────────────────────
+{id:"footer_bg",               kind:"footer",      sid:"sec_footer", x:0,    y:3500, w:100, h:200, rot:0, ax:0,   ay:0,   z:0, fx:{}},
+{id:"footer_logo",             kind:"text",        sid:"sec_footer", x:4,    y:3518, w:14,  h:30,  rot:0, ax:0,   ay:0,   z:2, fx:{}},
+{id:"footer_tagline",          kind:"text",        sid:"sec_footer", x:4,    y:3554, w:24,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{}},
+{id:"footer_contact_email",    kind:"footer_link", sid:"sec_footer", x:4,    y:3576, w:22,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true,C:"open_link"}},
+{id:"footer_contact_phone",    kind:"footer_link", sid:"sec_footer", x:4,    y:3598, w:18,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_contact_address",  kind:"text",        sid:"sec_footer", x:4,    y:3620, w:22,  h:28,  rot:0, ax:0,   ay:0,   z:2, fx:{}},
+{id:"footer_nav_home",         kind:"footer_link", sid:"sec_footer", x:36,   y:3518, w:10,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true,C:"scroll_to:sec_home"}},
+{id:"footer_nav_about",        kind:"footer_link", sid:"sec_footer", x:49,   y:3518, w:10,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true,C:"scroll_to:sec_about"}},
+{id:"footer_nav_services",     kind:"footer_link", sid:"sec_footer", x:60,   y:3518, w:11,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_nav_process",      kind:"footer_link", sid:"sec_footer", x:36,   y:3542, w:10,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_nav_projects",     kind:"footer_link", sid:"sec_footer", x:49,   y:3542, w:10,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_nav_testimonials", kind:"footer_link", sid:"sec_footer", x:60,   y:3542, w:13,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_nav_contact",      kind:"footer_link", sid:"sec_footer", x:36,   y:3566, w:10,  h:16,  rot:0, ax:0,   ay:0,   z:2, fx:{H:true}},
+{id:"footer_social_instagram", kind:"social_link", sid:"sec_footer", x:74,   y:3518, w:4.5, h:32,  rot:0, ax:0.5, ay:0.5, z:2, fx:{H:true}},
+{id:"footer_social_pinterest", kind:"social_link", sid:"sec_footer", x:80.5, y:3518, w:4.5, h:32,  rot:0, ax:0.5, ay:0.5, z:2, fx:{H:true}},
+{id:"footer_social_houzz",     kind:"social_link", sid:"sec_footer", x:87,   y:3518, w:4.5, h:32,  rot:0, ax:0.5, ay:0.5, z:2, fx:{H:true}},
+{id:"footer_social_linkedin",  kind:"social_link", sid:"sec_footer", x:93.5, y:3518, w:4.5, h:32,  rot:0, ax:0.5, ay:0.5, z:2, fx:{H:true}},
+{id:"footer_rule",             kind:"rule",        sid:"sec_footer", x:4,    y:3668, w:92,  h:1,   rot:0, ax:0,   ay:0.5, z:2, fx:{}},
+{id:"footer_copyright",        kind:"text",        sid:"sec_footer", x:4,    y:3678, w:50,  h:14,  rot:0, ax:0,   ay:0,   z:2, fx:{}},
+];
+
+// ══════════════════════════════════════════════════════════════
+// RENDERER
+// ══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const panel  = document.getElementById('canvas-panel');
+const infoEl = document.getElementById('element-info');
+const rulerEl= document.getElementById('scroll-ruler');
+
+let SCALE = 0.35;
+let CANVAS_W, CANVAS_H;
+
+let hoveredEl = null;
+let pinnedEl  = null;
+
+// ── Options ─────────────────────────────────
+const opts = {
+  sections:  true,
+  labels:    true,
+  hoverBbox: true,
+  badges:    true,
+  zOpacity:  true,
+  rulers:    true,
+};
+
+// ── Coordinate helpers ───────────────────────
+function cx(xPct)  { return xPct * (VW_BASE / 100) * SCALE; }
+function cy(yPx)   { return yPx * SCALE; }
+function cw(wPct)  { return wPct * (VW_BASE / 100) * SCALE; }
+function ch(hPx)   { return hPx * SCALE; }
+
+// Min canvas height for a box (so thin elements remain visible)
+const MIN_H = 1.5;
+const MIN_W = 2;
+
+function getCanvasRect(el) {
+  const x = cx(el.x);
+  const y = cy(el.y);
+  const w = Math.max(cw(el.w), MIN_W);
+  const h = Math.max(ch(el.h), el.kind === 'rule' ? MIN_H : (el.kind === 'social_link' ? 8 : MIN_H));
+  return { x, y, w, h };
+}
+
+// ── Draw one element ─────────────────────────
+function drawElement(el, isHovered, isPinned) {
+  const r = getCanvasRect(el);
+  const stroke  = SECTION_STROKE[el.sid] || '#888';
+  const fill    = KIND_FILL[el.kind]     || 'rgba(120,120,120,0.2)';
+  const alpha   = el.alpha !== undefined ? el.alpha : 1.0;
+
+  // Z-order visual weight
+  const zFade   = opts.zOpacity ? Math.max(0.35, Math.min(1.0, el.z / 10)) : 1.0;
+
+  ctx.save();
+
+  // Rotate around anchor point
+  const originX = r.x + r.w * (el.ax || 0);
+  const originY = r.y + r.h * (el.ay || 0);
+  ctx.translate(originX, originY);
+  if (el.rot) ctx.rotate(el.rot * Math.PI / 180);
+  ctx.translate(-originX, -originY);
+
+  ctx.globalAlpha = alpha * zFade;
+
+  // Fill
+  ctx.fillStyle = fill;
+  ctx.fillRect(r.x, r.y, r.w, r.h);
+
+  // Stroke
+  ctx.strokeStyle = (isHovered || isPinned) ? '#fff' : stroke;
+  ctx.lineWidth   = (isHovered || isPinned) ? 1.5 : (el.kind === 'rule' ? 0.5 : 0.7);
+  ctx.globalAlpha = (isHovered || isPinned) ? 1.0 : alpha * zFade;
+  ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+  // Rotation indicator (small cross at anchor)
+  if (el.rot && el.rot !== 0) {
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(originX - 3, originY);
+    ctx.lineTo(originX + 3, originY);
+    ctx.moveTo(originX, originY - 3);
+    ctx.lineTo(originX, originY + 3);
+    ctx.stroke();
+  }
+
+  // Label
+  if (opts.labels) {
+    const shortId = abbreviate(el.id);
+    const fontSize = Math.max(5, Math.min(9, r.w / (shortId.length * 0.55)));
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle   = isHovered ? '#fff' : '#e0dcd4';
+    ctx.font        = `${fontSize}px 'Courier New', monospace`;
+    ctx.textAlign   = 'left';
+    ctx.textBaseline= 'top';
+    if (r.w > 10 && r.h > 4) {
+      ctx.fillText(shortId, r.x + 1.5, r.y + 1.5, r.w - 3);
+    }
+  }
+
+  // FX badges (tiny dots)
+  if (opts.badges) {
+    drawBadges(el, r);
+  }
+
+  ctx.restore();
+}
+
+function abbreviate(id) {
+  // remove common prefixes / shorten long ids
+  return id
+    .replace(/^nav_item_/, 'ni_')
+    .replace(/^nav_/,      'nav_')
+    .replace(/^hero_/,     'h_')
+    .replace(/^about_/,    'ab_')
+    .replace(/^services_card_(\d)_/, 'sc$1_')
+    .replace(/^services_/,  'svc_')
+    .replace(/^process_step_(\d)_no/, 'ps$1#')
+    .replace(/^process_step_(\d)/,    'ps$1')
+    .replace(/^process_/,   'prc_')
+    .replace(/^projects_img_/,'pj_i')
+    .replace(/^projects_/,  'pj_')
+    .replace(/^testimonials_/, 'tst_')
+    .replace(/^contact_form_/, 'cf_')
+    .replace(/^contact_/,   'ct_')
+    .replace(/^footer_nav_/, 'fn_')
+    .replace(/^footer_social_/, 'fs_')
+    .replace(/^footer_contact_/, 'fc_')
+    .replace(/^footer_/,    'ft_');
+}
+
+const BADGE_SIZE = 4;
+function drawBadges(el, r) {
+  const badges = [];
+  const fx = el.fx || {};
+  if (el.sticky) badges.push({ color: '#e040e0', sym: '★' });
+  if (fx.P)  badges.push({ color: '#00aaff', sym: 'P' });
+  if (fx.M)  badges.push({ color: '#ffaa00', sym: 'M' });
+  if (fx.H)  badges.push({ color: '#00dd00', sym: 'H' });
+  if (fx.S)  badges.push({ color: '#0088ff', sym: 'S' });
+  if (fx.C)  badges.push({ color: '#ff6600', sym: 'C' });
+
+  if (!badges.length) return;
+  ctx.globalAlpha = 0.9;
+  badges.forEach((b, i) => {
+    const bx = r.x + r.w - (i + 1) * (BADGE_SIZE + 1.5);
+    const by = r.y + 1.5;
+    if (bx < r.x) return;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(bx + BADGE_SIZE / 2, by + BADGE_SIZE / 2, BADGE_SIZE / 2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// ── Draw hover bbox (dashed outline) ────────
+function drawHoverBbox(el) {
+  if (!opts.hoverBbox) return;
+  const fx = el.fx || {};
+  if (!fx.H) return;
+  const r = getCanvasRect(el);
+  // Approximate hover translation (shift box)
+  const dx = 0;
+  const dy = -6 * SCALE; // typical hover_translate y = -6px
+  ctx.save();
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth   = 0.8;
+  ctx.globalAlpha = 0.4;
+  ctx.strokeRect(r.x + dx - 1, r.y + dy - 1, r.w + 2, r.h + 2);
+  ctx.restore();
+}
+
+// ── Draw magnetic zone ───────────────────────
+function drawMagneticZone(el) {
+  const fx = el.fx || {};
+  if (!fx.M) return;
+  const [, dist] = fx.M;
+  const r = getCanvasRect(el);
+  const cdist = dist * SCALE;
+  ctx.save();
+  ctx.strokeStyle = '#ffaa00';
+  ctx.lineWidth   = 0.6;
+  ctx.globalAlpha = 0.20;
+  ctx.setLineDash([2, 4]);
+  ctx.strokeRect(r.x - cdist, r.y - cdist, r.w + cdist * 2, r.h + cdist * 2);
+  ctx.restore();
+}
+
+// ── Section bands ────────────────────────────
+function drawSectionBands() {
+  if (!opts.sections) return;
+  SECTIONS.forEach(sec => {
+    const sy = cy(sec.y);
+    const sh = ch(sec.h);
+    // Band fill
+    ctx.fillStyle = SECTION_BG[sec.id] || 'rgba(60,60,60,0.3)';
+    ctx.fillRect(0, sy, CANVAS_W, sh);
+    // Top border line
+    ctx.strokeStyle = SECTION_STROKE[sec.id] || '#555';
+    ctx.lineWidth   = 0.8;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(0, sy);
+    ctx.lineTo(CANVAS_W, sy);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Section label on left edge
+    ctx.fillStyle = SECTION_STROKE[sec.id] || '#888';
+    ctx.font      = `bold 8px 'Courier New', monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.globalAlpha = 0.7;
+    ctx.fillText(sec.label, 2, sy + 2);
+    ctx.globalAlpha = 1;
+  });
+}
+
+// ── Rulers (y-tick marks on right edge) ─────
+function drawRulers() {
+  if (!opts.rulers) return;
+  ctx.save();
+  ctx.strokeStyle = '#444';
+  ctx.fillStyle   = '#666';
+  ctx.lineWidth   = 0.5;
+  ctx.font        = '7px Courier New';
+  ctx.textAlign   = 'right';
+  ctx.textBaseline = 'middle';
+  for (let ypx = 0; ypx <= SCROLL_H; ypx += 100) {
+    const yc = cy(ypx);
+    ctx.globalAlpha = ypx % 500 === 0 ? 0.6 : 0.25;
+    ctx.beginPath();
+    ctx.moveTo(CANVAS_W - 18, yc);
+    ctx.lineTo(CANVAS_W, yc);
+    ctx.stroke();
+    if (ypx % 500 === 0) {
+      ctx.globalAlpha = 0.5;
+      ctx.fillText(ypx + 'px', CANVAS_W - 2, yc);
+    }
+  }
+  ctx.restore();
+}
+
+// ── Viewport ghost (shows one "screen" extent) ─
+function drawViewportGhost(scrollY) {
+  const vy = cy(scrollY);
+  const vh = cy(900);
+  ctx.save();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth   = 0.7;
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle   = '#ffffff';
+  ctx.fillRect(0, vy, CANVAS_W, vh);
+  ctx.globalAlpha = 0.25;
+  ctx.strokeRect(0, vy, CANVAS_W, vh);
+  ctx.restore();
+}
+
+// ── Main render ──────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  // Dark background
+  ctx.fillStyle = '#141414';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  drawSectionBands();
+  drawRulers();
+
+  // Viewport ghost at scroll position
+  const scrollRatio = panel.scrollTop / (CANVAS_H - panel.clientHeight || 1);
+  const scrollYPx = scrollRatio * (SCROLL_H - 900);
+  drawViewportGhost(scrollYPx);
+
+  // Sort elements by z-index for correct paint order
+  const sorted = [...EL].sort((a, b) => a.z - b.z);
+
+  sorted.forEach(el => {
+    const isHovered = hoveredEl && hoveredEl.id === el.id;
+    const isPinned  = pinnedEl  && pinnedEl.id  === el.id;
+    drawElement(el, isHovered, isPinned);
+    if (isHovered) {
+      drawHoverBbox(el);
+      drawMagneticZone(el);
+    }
+  });
+}
+
+// ── Hit detection (axis-aligned approximation) ─
+function hitTest(mx, my) {
+  // Convert canvas coords to page coords
+  const xPct = (mx / CANVAS_W) * 100;
+  const yPx  = my / SCALE;
+
+  // Test in reverse z-order (topmost first)
+  const sorted = [...EL].sort((a, b) => b.z - a.z);
+  for (const el of sorted) {
+    // AABB test (ignores rotation, good enough for picker)
+    const ex0 = el.x;
+    const ex1 = el.x + el.w;
+    const ey0 = el.y;
+    const ey1 = el.y + el.h;
+    if (xPct >= ex0 && xPct <= ex1 && yPx >= ey0 && yPx <= ey1) {
+      return el;
+    }
+  }
+  return null;
+}
+
+// ── Info panel ───────────────────────────────
+function showInfo(el) {
+  if (!el) {
+    infoEl.innerHTML = `<p class="hint">Hover over a box to inspect it.<br>Click to pin the selection.</p>`;
+    return;
+  }
+  const sec = SECTIONS.find(s => s.id === el.sid) || {};
+  const fx  = el.fx || {};
+
+  const badges = [];
+  if (el.sticky)  badges.push(`<span class="badge" style="background:#6020a0">★ STICKY</span>`);
+  if (fx.P != null) badges.push(`<span class="badge" style="background:#005088">P parallax ×${fx.P}</span>`);
+  if (fx.M)       badges.push(`<span class="badge" style="background:#885000">M magnetic str=${fx.M[0]} r=${fx.M[1]}px</span>`);
+  if (fx.H)       badges.push(`<span class="badge" style="background:#006020">H hover fx</span>`);
+  if (fx.S)       badges.push(`<span class="badge" style="background:#003880">S scroll anim</span>`);
+  if (fx.C)       badges.push(`<span class="badge" style="background:#802000">C → ${fx.C}</span>`);
+
+  const rotLabel = el.rot ? `${el.rot}° ${el.rot < 0 ? 'CCW' : 'CW'}` : '0° (no rotation)';
+  const anchorLabel = `(${el.ax * 100}%, ${el.ay * 100}%)`;
+  const widthPx  = (el.w / 100 * VW_BASE).toFixed(1);
+  const rightEdge= (el.x + el.w).toFixed(2);
+  const bottomPx = (el.y + el.h).toFixed(0);
+
+  infoEl.innerHTML = `
+    <div style="font-size:14px;font-weight:bold;color:#c8b090;margin-bottom:8px;word-break:break-all">${el.id}</div>
+    <div style="font-size:10px;color:#666;margin-bottom:12px">${el.kind} &nbsp;·&nbsp; ${sec.label || el.sid}</div>
+
+    <div class="prop-section">Position &amp; Size</div>
+    <div class="prop-row"><span class="key">x</span>       <span class="val">${el.x} vw%</span></div>
+    <div class="prop-row"><span class="key">y</span>       <span class="val">${el.y} px</span></div>
+    <div class="prop-row"><span class="key">width</span>   <span class="val">${el.w} vw% &nbsp; ≈ ${widthPx} px</span></div>
+    <div class="prop-row"><span class="key">height</span>  <span class="val">${el.h} px</span></div>
+    <div class="prop-row"><span class="key">right edge</span> <span class="val">${rightEdge} vw%${parseFloat(rightEdge) > 100 ? ' ⚠ BLEEDS' : ''}</span></div>
+    <div class="prop-row"><span class="key">bottom</span>  <span class="val">${bottomPx} px</span></div>
+
+    <div class="prop-section">Transform</div>
+    <div class="prop-row"><span class="key">rotation</span> <span class="val">${rotLabel}</span></div>
+    <div class="prop-row"><span class="key">anchor</span>   <span class="val">${anchorLabel}</span></div>
+    <div class="prop-row"><span class="key">z-index</span>  <span class="val">${el.z}</span></div>
+    ${el.alpha !== undefined ? `<div class="prop-row"><span class="key">opacity</span> <span class="val">${el.alpha}</span></div>` : ''}
+    ${el.sticky ? `<div class="prop-row"><span class="key">sticky</span> <span class="val">top: ${el.sticky}px</span></div>` : ''}
+
+    ${badges.length ? `<div class="prop-section">Interactions</div><div class="badge-list">${badges.join('')}</div>` : ''}
+
+    <div class="prop-section" style="margin-top:16px">Edit in controlnet.dl</div>
+    <div style="font-size:10px;color:#555;word-break:break-all">
+      pos("${el.id}", ${el.x}, ${el.y}).<br>
+      size("${el.id}", ${el.w}, ${el.h}).<br>
+      rotation("${el.id}", ${el.rot || 0.0}).
+    </div>
+  `;
+}
+
+// ── Canvas resize / scale ────────────────────
+function resize() {
+  CANVAS_W = Math.round(VW_BASE * SCALE);
+  CANVAS_H = Math.round(SCROLL_H * SCALE);
+  canvas.width  = CANVAS_W;
+  canvas.height = CANVAS_H;
+  canvas.style.width  = CANVAS_W + 'px';
+  canvas.style.height = CANVAS_H + 'px';
+
+  // Update scroll ruler in info panel
+  let rulerHtml = '<div class="prop-section">Scroll reference</div>';
+  SECTIONS.forEach(s => {
+    rulerHtml += `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:10px;color:#666;border-bottom:1px solid #2a2a2a">
+      <span style="color:${SECTION_STROKE[s.id]||'#888'}">${s.label}</span>
+      <span>y ${s.y}–${s.y+s.h} px</span>
+    </div>`;
+  });
+  rulerHtml += `<div style="padding:4px 0;font-size:10px;color:#555">Total: ${SCROLL_H}px = ${(SCROLL_H/900).toFixed(1)}× viewport</div>`;
+  document.getElementById('scroll-ruler').innerHTML = rulerHtml;
+
+  render();
+}
+
+// ── Mouse handling ───────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx   = e.clientX - rect.left;
+  const my   = e.clientY - rect.top;
+
+  const xPct = ((mx / CANVAS_W) * 100).toFixed(1);
+  const yPx  = (my / SCALE).toFixed(0);
+  document.getElementById('cursor-pos').textContent = `x: ${xPct} vw%   y: ${yPx} px`;
+
+  if (!pinnedEl) {
+    const hit = hitTest(mx, my);
+    if (hit !== hoveredEl) {
+      hoveredEl = hit;
+      if (!pinnedEl) showInfo(hit);
+      render();
+    }
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const hit  = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+  if (hit && pinnedEl && hit.id === pinnedEl.id) {
+    pinnedEl = null; // unpin
+    showInfo(hoveredEl);
+  } else {
+    pinnedEl = hit || null;
+    showInfo(pinnedEl);
+  }
+  render();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (!pinnedEl) {
+    hoveredEl = null;
+    showInfo(null);
+    render();
+  }
+  document.getElementById('cursor-pos').textContent = 'x: — &nbsp; y: —';
+});
+
+panel.addEventListener('scroll', () => render());
+
+// ── Controls ─────────────────────────────────
+document.getElementById('zoom-slider').addEventListener('input', function() {
+  SCALE = this.value / 100;
+  document.getElementById('zoom-val').textContent = this.value + '%';
+  resize();
+});
+
+document.getElementById('tog-sections').addEventListener('change', e => { opts.sections  = e.target.checked; render(); });
+document.getElementById('tog-labels').addEventListener('change',   e => { opts.labels    = e.target.checked; render(); });
+document.getElementById('tog-hover-bbox').addEventListener('change',e => { opts.hoverBbox = e.target.checked; render(); });
+document.getElementById('tog-badges').addEventListener('change',   e => { opts.badges    = e.target.checked; render(); });
+document.getElementById('tog-z').addEventListener('change',        e => { opts.zOpacity  = e.target.checked; render(); });
+document.getElementById('tog-rulers').addEventListener('change',   e => { opts.rulers    = e.target.checked; render(); });
+
+// ── Init ─────────────────────────────────────
+resize();
+</script>
+</body>
+</html>

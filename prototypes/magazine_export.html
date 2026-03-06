@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --cream:#fdfaf5; --ink:#1a1714; --gold:#b89a6e; }
+  body { background: white; margin: 0; padding: 0; display: inline-block; }
+
+  .magazine {
+    display: flex;
+    width: 1100px;
+    height: 700px;
+    border-radius: 1px 2px 2px 1px;
+    overflow: hidden;
+  }
+
+  /* LEFT PAGE — photo full bleed, no overlays */
+  .page-left {
+    flex: 1;
+    background: #1a1410;
+    overflow: hidden;
+    border-radius: 1px 0 0 3px;
+    position: relative;
+  }
+  .page-left img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center 30%;
+    display: block;
+    filter: brightness(0.88) contrast(1.08);
+  }
+  .page-left .page-num {
+    position: absolute; bottom: 13px; right: 16px;
+    font-size: 8.5px; letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    font-weight: 300;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  /* SPINE */
+  .spine {
+    width: 22px; flex-shrink: 0;
+    background: linear-gradient(90deg,
+      #c8c0b4 0%, #ede6dc 15%, #f8f4ee 35%,
+      #fdfaf5 50%, #f8f4ee 65%, #e8e0d4 85%, #c4bcb0 100%);
+    box-shadow:
+      inset -5px 0 10px rgba(0,0,0,0.12),
+      inset  5px 0 10px rgba(0,0,0,0.12),
+      inset  0   0  4px rgba(0,0,0,0.08);
+    position: relative;
+  }
+  .spine::after {
+    content: 'INTERIORS QUARTERLY · Vol. XII';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) rotate(90deg);
+    white-space: nowrap; font-size: 6px;
+    letter-spacing: 0.2em; color: rgba(100,88,76,0.45);
+    font-weight: 300; text-transform: uppercase;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+
+  /* RIGHT PAGE */
+  .page-right {
+    width: 420px; flex-shrink: 0;
+    background: var(--cream);
+    padding: 32px 42px 28px;
+    position: relative;
+    display: flex; flex-direction: column;
+    border-radius: 0 2px 2px 0;
+    box-shadow: inset 8px 0 16px rgba(0,0,0,0.06);
+    background-image:
+      linear-gradient(135deg, rgba(255,248,236,0.4) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(240,228,208,0.3) 0%, transparent 70%);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+  .header-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 10px; border-bottom: 0.5px solid #d8cfc4; margin-bottom: 22px;
+  }
+  .section-tag { font-size: 8.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); font-weight: 300; }
+  .issue-tag   { font-size: 8px; letter-spacing: 0.1em; color: #b0a898; font-weight: 300; font-style: italic; }
+  .section-label { font-size: 8.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #b0a898; font-weight: 300; margin-bottom: 10px; }
+  .headline { font-size: 38px; font-weight: 600; line-height: 1.06; color: var(--ink); letter-spacing: -0.3px; margin-bottom: 14px; }
+  .byline   { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: #a09080; font-weight: 300; margin-bottom: 14px; }
+  .editorial-rule { height: 0.5px; background: linear-gradient(90deg, var(--gold) 0%, #d8cfc4 60%, transparent 100%); margin-bottom: 16px; }
+  .body-columns {
+    flex: 1; column-count: 2; column-gap: 22px;
+    column-rule: 0.5px solid #e0d8cc;
+    font-size: 12px; line-height: 1.78; color: #3a3028; font-weight: 400; overflow: hidden;
+  }
+  .body-columns p:first-child::first-letter {
+    font-size: 54px; font-weight: 700; line-height: 0.78;
+    float: left; margin-right: 5px; margin-top: 6px; color: var(--ink);
+  }
+  .body-columns p + p { margin-top: 10px; }
+  .pull-quote {
+    column-span: all; font-size: 16px; font-style: italic; font-weight: 300;
+    color: #5a4a38; line-height: 1.55;
+    border-left: 1.5px solid var(--gold); padding: 8px 0 8px 14px; margin: 14px 0;
+  }
+  .signature { font-size: 13px; font-style: italic; font-weight: 300; color: #a09080; letter-spacing: 0.04em; margin-top: auto; padding-top: 14px; }
+  .page-num-right { position: absolute; bottom: 13px; right: 20px; font-size: 8.5px; letter-spacing: 0.08em; color: #c0b8b0; font-weight: 300; }
+  .page-right::after {
+    content: ''; position: absolute; bottom: 0; right: 0; width: 36px; height: 36px;
+    background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.04) 50%, rgba(0,0,0,0.10) 100%);
+    border-radius: 0 0 2px 0;
+  }
+</style>
+</head>
+<body>
+<div class="magazine">
+
+  <!-- LEFT PAGE: photo only -->
+  <div class="page-left">
+    <img src="../assets/originals/hollywood_hills_home.png" alt="">
+    <div class="page-num">12</div>
+  </div>
+
+  <!-- SPINE -->
+  <div class="spine"></div>
+
+  <!-- RIGHT PAGE -->
+  <div class="page-right">
+    <div class="header-row">
+      <span class="section-tag">Profile · Designer</span>
+      <span class="issue-tag">Interiors Quarterly, Vol. XII</span>
+    </div>
+    <div class="section-label">About ZDC</div>
+    <div class="headline">Where History<br>Meets Home</div>
+    <div class="byline">Alessandra Lopez &nbsp;·&nbsp; Zelda Design Co., Glendora CA</div>
+    <div class="editorial-rule"></div>
+    <div class="body-columns">
+      <p>Zelda Design is a full-service residential design studio in Glendora, California, specializing in historic rehabilitation, new construction, and eclectic interiors. Led by Alessandra Lopez, we believe preservation and contemporary living should coexist beautifully.</p>
+      <div class="pull-quote">"Preservation and contemporary living should coexist beautifully."</div>
+      <p>Every project begins with listening — to the architecture, to the neighborhood, and to the people who will live there. We draw on a deep love of craft, materiality, and the layered histories that make a house feel genuinely alive.</p>
+      <p>Whether we're restoring original millwork in a 1920s Craftsman or sourcing furniture for a newly built home, our goal is always the same: spaces that feel considered, personal, and utterly yours.</p>
+    </div>
+    <div class="signature">— Alessandra Lopez</div>
+    <div class="page-num-right">13</div>
+  </div>
+
+</div>
+</body>
+</html>

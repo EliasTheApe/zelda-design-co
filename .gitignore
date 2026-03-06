@@ -1,0 +1,19 @@
+# Python environments
+venv/
+venv312/
+.venv/
+__pycache__/
+*.pyc
+
+# Node dependencies
+node_modules/
+
+# OS/editor
+.DS_Store
+*.swp
+*.swo
+
+# Generated renders
+assets/renders/collage_preview.png
+assets/renders/magazine_render.png
+site/collage_generated.html

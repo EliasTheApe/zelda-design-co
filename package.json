@@ -1,0 +1,16 @@
+{
+  "name": "alessandra",
+  "version": "1.0.0",
+  "main": "tools/screenshot_mag.js",
+  "scripts": {
+    "screenshot:magazine": "node tools/screenshot_mag.js",
+    "test": "echo \"No JS tests configured\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "puppeteer": "^24.38.0"
+  }
+}

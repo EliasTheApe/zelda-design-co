@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zelda Design Co. Layout Editor</title>
+  <style>
+    :root {
+      --bg: #12100d;
+      --panel: #1d1914;
+      --panel-2: #262019;
+      --line: #3a3024;
+      --text: #f3ece0;
+      --muted: #b19c83;
+      --accent: #c9a56a;
+      --accent-2: #8a6741;
+      --canvas-w: 1440px;
+      --canvas-h: 3900px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(201, 165, 106, 0.1), transparent 30%),
+        linear-gradient(180deg, #15120e, #0e0c0a 70%);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr) 320px;
+      height: 100vh;
+      gap: 1px;
+      background: var(--line);
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), #15120e);
+      overflow: auto;
+      padding: 18px;
+    }
+    .stage-wrap {
+      background:
+        linear-gradient(180deg, rgba(201, 165, 106, 0.08), transparent 20%),
+        #110f0c;
+      overflow-x: auto;
+      overflow-y: scroll;
+      padding: 24px;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 {
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0.04em;
+      margin-bottom: 12px;
+    }
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 14px;
+    }
+    .toolbar, .form-grid, .asset-list, .snapshot-list, .layer-list {
+      display: grid;
+      gap: 10px;
+    }
+    .toolbar {
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 16px;
+    }
+    .toolbar.zoom-toolbar {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    button, input, select, textarea {
+      font: inherit;
+    }
+    button {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #30271e, #241d16);
+      color: var(--text);
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+    button:hover {
+      border-color: var(--accent);
+      color: #fff8ee;
+    }
+    button.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(201, 165, 106, 0.5);
+      background: linear-gradient(180deg, #3a2d1d, #2a2118);
+    }
+    .toolbar button.full {
+      grid-column: 1 / -1;
+    }
+    .group {
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+    .group h2 {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .field input, .field textarea {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 8px 10px;
+    }
+    .field textarea {
+      min-height: 112px;
+      resize: vertical;
+    }
+    .asset-list, .snapshot-list, .layer-list {
+      max-height: 40vh;
+      overflow: auto;
+    }
+    .asset-card, .snapshot-card, .layer-card {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .asset-card {
+      grid-template-columns: 60px minmax(0, 1fr);
+      align-items: center;
+      cursor: pointer;
+    }
+    .asset-card img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      display: block;
+    }
+    .asset-card strong, .snapshot-card strong {
+      font-size: 13px;
+      line-height: 1.2;
+    }
+    .asset-card span, .snapshot-card span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .snapshot-card button {
+      text-align: center;
+      padding: 8px 10px;
+    }
+    .layer-card {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 8px;
+    }
+    .layer-card.active {
+      border-color: var(--accent);
+      background: rgba(201, 165, 106, 0.08);
+    }
+    .layer-card button {
+      text-align: center;
+      padding: 8px 10px;
+    }
+    .layer-meta {
+      min-width: 0;
+    }
+    .layer-meta strong,
+    .layer-meta span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .layer-meta span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .stage {
+      position: relative;
+      width: var(--canvas-w);
+      height: var(--canvas-h);
+      overflow: hidden;
+      background: #f7f3ec;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.38);
+      transform-origin: top left;
+    }
+    .stage-viewport {
+      position: relative;
+      margin: 0 auto;
+    }
+    .section {
+      position: absolute;
+      left: 0;
+      width: 100%;
+    }
+    .section-label {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: rgba(0, 0, 0, 0.35);
+    }
+    .guide-box {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-left: 1px dashed rgba(138, 103, 65, 0.55);
+      border-right: 1px dashed rgba(138, 103, 65, 0.55);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .guide-box::before {
+      content: attr(data-label);
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: rgba(90, 63, 38, 0.72);
+      text-transform: uppercase;
+      background: rgba(253, 250, 245, 0.78);
+      padding: 3px 6px;
+    }
+    .layer {
+      position: absolute;
+      transform-origin: center center;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-user-drag: none;
+    }
+    .layer.hidden {
+      opacity: 0.2;
+    }
+    .layer img {
+      width: 100%;
+      height: auto;
+      display: block;
+      pointer-events: none;
+      box-shadow: 8px 14px 24px rgba(0, 0, 0, 0.35);
+    }
+    .layer.text-layer {
+      min-width: 80px;
+    }
+    .layer.text-layer .text-node {
+      display: block;
+      width: 100%;
+      white-space: pre-wrap;
+      pointer-events: none;
+      text-wrap: balance;
+    }
+    .layer.selected {
+      outline: 2px dashed var(--accent);
+      outline-offset: 4px;
+    }
+    .handle {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #fff5e6;
+      background: var(--accent);
+      z-index: 5;
+    }
+    .handle.rotate {
+      left: calc(50% - 9px);
+      top: -34px;
+      cursor: grab;
+    }
+    .handle.resize {
+      right: -10px;
+      bottom: -10px;
+      cursor: nwse-resize;
+    }
+    .status {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      margin-top: 12px;
+      min-height: 34px;
+    }
+    .keyline {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid var(--line);
+      color: var(--accent);
+      margin-right: 4px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+    @media (max-width: 1200px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(360px, 1fr) auto;
+      }
+      .panel {
+        max-height: 36vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <h1>Zelda Layout</h1>
+      <p class="subtle">Browser editor replacing the Tk tool. Drag, resize, rotate, snapshot, and export the collage directly in the browser.</p>
+      <div class="toolbar">
+        <button id="download-json">Download JSON</button>
+        <button id="download-html">Download HTML</button>
+        <button id="save-snapshot">Save Snapshot</button>
+        <button id="reset-layout">Reset Layout</button>
+        <button id="remove-duplicates">Remove Duplicates</button>
+        <button class="full" id="import-json">Import JSON</button>
+        <input id="import-file" type="file" accept=".json,application/json" hidden>
+      </div>
+
+      <div class="group">
+        <h2>Canvas</h2>
+        <div class="toolbar zoom-toolbar">
+          <button id="zoom-out">-</button>
+          <button id="zoom-fit">Fit</button>
+          <button id="zoom-100">100%</button>
+          <button id="zoom-in">+</button>
+        </div>
+        <p class="keyline">
+          <span id="zoom-readout">Zoom 100%</span>
+          <span class="pill">Canvas</span> 1440 x 3900
+        </p>
+        <p class="keyline">
+          Keep key content inside the dashed desktop-safe guides. The outer canvas is for bleed and looser collage edges.
+        </p>
+      </div>
+
+      <div class="group">
+        <h2>Active Param</h2>
+        <div class="toolbar" id="param-buttons">
+          <button data-param="x">X</button>
+          <button data-param="y">Y</button>
+          <button data-param="size" class="active">Size</button>
+          <button data-param="rot">Rot</button>
+          <button data-param="z">Z</button>
+        </div>
+        <p class="keyline">
+          <span class="pill">Arrows</span> move active param
+          <span class="pill">Shift</span> bigger steps
+          <span class="pill">[ ]</span> rotate
+          <span class="pill">- =</span> size
+          <span class="pill">PgUp/PgDn</span> z
+        </p>
+      </div>
+
+      <div class="group">
+        <h2>Assets</h2>
+        <div class="toolbar">
+          <button class="full" id="add-local-image">Add Local Image</button>
+          <input id="local-image-input" type="file" accept="image/*" multiple hidden>
+        </div>
+        <div class="asset-list" id="asset-list"></div>
+      </div>
+
+      <div class="group">
+        <h2>Text Blocks</h2>
+        <div class="asset-list" id="text-preset-list"></div>
+      </div>
+    </aside>
+
+    <main class="stage-wrap">
+      <div class="stage-viewport" id="stage-viewport">
+        <div class="stage" id="stage"></div>
+      </div>
+    </main>
+
+    <aside class="panel">
+      <div class="group" style="margin-top:0;padding-top:0;border-top:none;">
+        <h2>Selection</h2>
+        <div class="form-grid" id="selection-form">
+          <div class="field">
+            <label>Asset</label>
+            <input id="sel-file" disabled>
+          </div>
+          <div class="field">
+            <label>Visible</label>
+            <button id="toggle-visible">Toggle Visibility</button>
+          </div>
+          <div class="field" style="grid-column: 1 / -1;">
+            <label>Text</label>
+            <textarea id="sel-text"></textarea>
+          </div>
+          <div class="field">
+            <label>X</label>
+            <input id="sel-x" type="number" step="1">
+          </div>
+          <div class="field">
+            <label>Y</label>
+            <input id="sel-y" type="number" step="1">
+          </div>
+          <div class="field">
+            <label>Size</label>
+            <input id="sel-size" type="number" step="1" min="20">
+          </div>
+          <div class="field">
+            <label>Rot</label>
+            <input id="sel-rot" type="number" step="0.1">
+          </div>
+          <div class="field">
+            <label>Z</label>
+            <input id="sel-z" type="number" step="1">
+          </div>
+          <div class="field">
+            <label>Font Size</label>
+            <input id="sel-font-size" type="number" step="1" min="8">
+          </div>
+          <div class="field">
+            <label>Line Height</label>
+            <input id="sel-line-height" type="number" step="0.01" min="0.5">
+          </div>
+          <div class="field">
+            <label>Letter Spacing</label>
+            <input id="sel-letter-spacing" type="number" step="0.1">
+          </div>
+          <div class="field">
+            <label>Color</label>
+            <input id="sel-color" type="text">
+          </div>
+          <div class="field">
+            <label>Actions</label>
+            <button id="delete-layer">Delete Layer</button>
+          </div>
+        </div>
+        <div class="status" id="status">Ready.</div>
+      </div>
+
+      <div class="group">
+        <h2>Layers</h2>
+        <div class="layer-list" id="layer-list"></div>
+      </div>
+
+      <div class="group">
+        <h2>Snapshots</h2>
+        <div class="snapshot-list" id="snapshot-list"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="./editor_data.js"></script>
+  <script>
+    (() => {
+      const STORAGE_KEY = "zelda-layout-editor.current.v5";
+      const SNAPSHOT_KEY = "zelda-layout-editor.snapshots.v5";
+      const stageWrap = document.querySelector(".stage-wrap");
+      const stageViewport = document.getElementById("stage-viewport");
+      const stage = document.getElementById("stage");
+      const zoomReadout = document.getElementById("zoom-readout");
+      const assetList = document.getElementById("asset-list");
+      const textPresetList = document.getElementById("text-preset-list");
+      const layerList = document.getElementById("layer-list");
+      const snapshotList = document.getElementById("snapshot-list");
+      const statusNode = document.getElementById("status");
+      const paramButtons = [...document.querySelectorAll("#param-buttons button")];
+
+      const assetMap = new Map(window.EDITOR_DATA.assets.map((asset) => [asset.file, asset]));
+      let nextId = 1;
+
+      const state = {
+        activeParam: "size",
+        selectedId: null,
+        drag: null,
+        zoom: 1,
+        lastAddKey: "",
+        lastAddAt: 0,
+        layers: loadCurrentLayout()
+      };
+
+      const canvasWidth = Number(window.EDITOR_DATA.canvas.width || 1440);
+      const canvasHeight = Number(window.EDITOR_DATA.canvas.height || 3900);
+      const desktopGuideWidth = 1180;
+      const desktopGuideX = Math.round((canvasWidth - desktopGuideWidth) / 2);
+      const comfortGuideWidth = 1280;
+      const comfortGuideX = Math.round((canvasWidth - comfortGuideWidth) / 2);
+
+      function loadCurrentLayout() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const source = saved ? JSON.parse(saved) : window.EDITOR_DATA.layout;
+        return source.map(normalizeLayer);
+      }
+
+      function normalizeLayer(layer) {
+        return {
+          id: nextId++,
+          type: layer.type || "image",
+          label: layer.label || layer.file || "Text",
+          file: layer.file || "",
+          srcData: layer.srcData || "",
+          text: typeof layer.text === "string" ? layer.text.replace(/\\n/g, "\n") : "",
+          x: Number(layer.x || 0),
+          y: Number(layer.y || 0),
+          size: Number(layer.size || layer.w || 200),
+          rot: Number(layer.rot || 0),
+          z: Number(layer.z || 20),
+          visible: layer.visible !== false,
+          fontSize: Number(layer.fontSize || 32),
+          lineHeight: Number(layer.lineHeight || 1.1),
+          letterSpacing: Number(layer.letterSpacing || 0),
+          color: layer.color || "#efe5d6",
+          family: layer.family || "Cormorant Garamond",
+          weight: Number(layer.weight || 500),
+          transform: layer.transform || "none"
+        };
+      }
+
+      function serializableLayers() {
+        return state.layers.map((layer) => ({
+          type: layer.type,
+          label: layer.label,
+          file: layer.file,
+          srcData: layer.srcData || undefined,
+          text: layer.type === "text" ? layer.text : undefined,
+          x: Math.round(layer.x),
+          y: Math.round(layer.y),
+          w: Math.round(layer.size),
+          h: null,
+          rot: Math.round(layer.rot * 10) / 10,
+          z: Math.round(layer.z),
+          visible: layer.visible !== false,
+          fontSize: layer.type === "text" ? Math.round(layer.fontSize) : undefined,
+          lineHeight: layer.type === "text" ? Math.round(layer.lineHeight * 100) / 100 : undefined,
+          letterSpacing: layer.type === "text" ? Math.round(layer.letterSpacing * 10) / 10 : undefined,
+          color: layer.type === "text" ? layer.color : undefined,
+          family: layer.type === "text" ? layer.family : undefined,
+          weight: layer.type === "text" ? layer.weight : undefined,
+          transform: layer.type === "text" ? layer.transform : undefined
+        }));
+      }
+
+      function currentLayer() {
+        return state.layers.find((layer) => layer.id === state.selectedId) || null;
+      }
+
+      function assetSrc(file) {
+        const asset = assetMap.get(file);
+        return asset ? asset.src : file;
+      }
+
+      function layerName(layer) {
+        return layer.type === "text" ? (layer.label || "Text Block") : layer.file;
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;");
+      }
+
+      function setStatus(text) {
+        statusNode.textContent = text;
+      }
+
+      function shouldSkipDuplicateAdd(key) {
+        const now = Date.now();
+        if (state.lastAddKey === key && now - state.lastAddAt < 450) {
+          return true;
+        }
+        state.lastAddKey = key;
+        state.lastAddAt = now;
+        return false;
+      }
+
+      function clampZoom(value) {
+        return Math.max(0.2, Math.min(2, value));
+      }
+
+      function applyZoom() {
+        stage.style.transform = "scale(" + state.zoom + ")";
+        stageViewport.style.width = Math.round(canvasWidth * state.zoom) + "px";
+        stageViewport.style.height = Math.round(canvasHeight * state.zoom) + "px";
+        zoomReadout.textContent = "Zoom " + Math.round(state.zoom * 100) + "%";
+      }
+
+      function setZoom(value) {
+        state.zoom = clampZoom(value);
+        applyZoom();
+      }
+
+      function fitZoom() {
+        const usableWidth = stageWrap.clientWidth - 48;
+        setZoom(usableWidth / canvasWidth);
+      }
+
+      function persistCurrent() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(serializableLayers()));
+      }
+
+      function saveSnapshot() {
+        try {
+          const snapshots = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "[]");
+          snapshots.unshift({
+            id: Date.now(),
+            label: new Date().toLocaleString(),
+            layers: serializableLayers()
+          });
+          const trimmed = snapshots.slice(0, 20);
+          localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(trimmed));
+          renderSnapshots();
+          snapshotList.scrollTop = 0;
+          setStatus("Snapshot saved. " + trimmed.length + " local snapshot" + (trimmed.length === 1 ? "" : "s") + " stored.");
+        } catch (error) {
+          setStatus("Snapshot failed. Use Download JSON to save a portable copy.");
+        }
+      }
+
+      function duplicateSignature(layer) {
+        const identity = layer.type === "text"
+          ? [layer.type, layer.label, layer.text]
+          : [layer.type, layer.file, layer.srcData ? "local" : "asset"];
+        const geometry = [
+          Math.round(layer.x),
+          Math.round(layer.y),
+          Math.round(layer.size),
+          Math.round(layer.rot * 10) / 10,
+          Math.round(layer.z),
+          layer.visible !== false
+        ];
+        return identity.concat(geometry).join("|");
+      }
+
+      function removeDuplicates() {
+        const seen = new Set();
+        let removed = 0;
+        state.layers = state.layers.filter((layer) => {
+          const signature = duplicateSignature(layer);
+          if (seen.has(signature)) {
+            removed += 1;
+            return false;
+          }
+          seen.add(signature);
+          return true;
+        });
+        if (!state.layers.some((layer) => layer.id === state.selectedId)) {
+          state.selectedId = state.layers[0] ? state.layers[0].id : null;
+        }
+        persistCurrent();
+        renderAll();
+        setStatus(removed ? ("Removed " + removed + " duplicate layer" + (removed === 1 ? "." : "s.")) : "No duplicate layers found.");
+      }
+
+      function renderSnapshots() {
+        const snapshots = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "[]");
+        snapshotList.innerHTML = "";
+        if (!snapshots.length) {
+          snapshotList.innerHTML = "<div class='snapshot-card'><span>No snapshots yet.</span></div>";
+          return;
+        }
+        snapshots.forEach((snapshot) => {
+          const card = document.createElement("div");
+          card.className = "snapshot-card";
+          card.innerHTML = "<strong></strong><span></span>";
+          card.querySelector("strong").textContent = snapshot.label;
+          card.querySelector("span").textContent = snapshot.layers.length + " layers";
+          const loadButton = document.createElement("button");
+          loadButton.textContent = "Load Snapshot";
+          loadButton.addEventListener("click", () => {
+            state.layers = snapshot.layers.map(normalizeLayer);
+            state.selectedId = state.layers[0] ? state.layers[0].id : null;
+            persistCurrent();
+            renderAll();
+            setStatus("Snapshot loaded.");
+          });
+          card.appendChild(loadButton);
+          snapshotList.appendChild(card);
+        });
+      }
+
+      function renderLayerList() {
+        layerList.innerHTML = "";
+        const ordered = [...state.layers].sort((a, b) => b.z - a.z);
+        if (!ordered.length) {
+          layerList.innerHTML = "<div class='layer-card'><div class='layer-meta'><span>No layers yet.</span></div></div>";
+          return;
+        }
+        ordered.forEach((layer) => {
+          const card = document.createElement("div");
+          card.className = "layer-card" + (layer.id === state.selectedId ? " active" : "");
+
+          const meta = document.createElement("button");
+          meta.type = "button";
+          meta.className = "layer-meta";
+          meta.innerHTML = "<strong></strong><span></span>";
+          meta.querySelector("strong").textContent = layerName(layer);
+          meta.querySelector("span").textContent = "z " + Math.round(layer.z) + " · " + (layer.visible ? "visible" : "hidden");
+          meta.addEventListener("click", () => {
+            state.selectedId = layer.id;
+            renderInspector();
+            renderLayerList();
+            renderStage();
+          });
+
+          const vis = document.createElement("button");
+          vis.type = "button";
+          vis.textContent = layer.visible ? "Hide" : "Show";
+          vis.addEventListener("click", () => {
+            layer.visible = !layer.visible;
+            persistCurrent();
+            renderLayerList();
+            renderStage();
+          });
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.textContent = "Delete";
+          del.addEventListener("click", () => {
+            state.layers = state.layers.filter((item) => item.id !== layer.id);
+            if (state.selectedId === layer.id) {
+              state.selectedId = state.layers[0] ? state.layers[0].id : null;
+            }
+            persistCurrent();
+            renderAll();
+          });
+
+          card.appendChild(meta);
+          card.appendChild(vis);
+          card.appendChild(del);
+          layerList.appendChild(card);
+        });
+      }
+
+      function renderAssets() {
+        assetList.innerHTML = "";
+        window.EDITOR_DATA.assets.forEach((asset) => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "asset-card";
+          card.innerHTML = "<img><div><strong></strong><span>Add to stage</span></div>";
+          card.querySelector("img").src = asset.src;
+          card.querySelector("strong").textContent = asset.file;
+          card.addEventListener("click", () => addAsset(asset.file));
+          assetList.appendChild(card);
+        });
+      }
+
+      function renderTextPresets() {
+        textPresetList.innerHTML = "";
+        window.EDITOR_DATA.textPresets.forEach((preset) => {
+          const card = document.createElement("button");
+          card.type = "button";
+          card.className = "asset-card";
+          card.style.gridTemplateColumns = "1fr";
+          card.innerHTML = "<div><strong></strong><span>Add text block</span></div>";
+          card.querySelector("strong").textContent = preset.label;
+          card.addEventListener("click", () => addTextPreset(preset));
+          textPresetList.appendChild(card);
+        });
+      }
+
+      function addAsset(file) {
+        if (shouldSkipDuplicateAdd("asset:" + file)) {
+          return;
+        }
+        const maxZ = state.layers.reduce((acc, layer) => Math.max(acc, layer.z), 20);
+        const layer = normalizeLayer({
+          type: "image",
+          file,
+          x: 120,
+          y: 120,
+          w: 280,
+          rot: 0,
+          z: maxZ + 1,
+          visible: true
+        });
+        state.layers.push(layer);
+        state.selectedId = layer.id;
+        persistCurrent();
+        renderAll();
+        setStatus("Added " + file + ".");
+      }
+
+      function addLocalImage(file, srcData) {
+        if (shouldSkipDuplicateAdd("local:" + file.name + ":" + file.size)) {
+          return;
+        }
+        const maxZ = state.layers.reduce((acc, layer) => Math.max(acc, layer.z), 20);
+        const layer = normalizeLayer({
+          type: "image",
+          label: file.name,
+          file: file.name,
+          srcData,
+          x: 140,
+          y: 140,
+          w: 320,
+          rot: 0,
+          z: maxZ + 1,
+          visible: true
+        });
+        state.layers.push(layer);
+        state.selectedId = layer.id;
+        persistCurrent();
+        renderAll();
+        setStatus("Added local image " + file.name + ".");
+      }
+
+      function addTextPreset(preset) {
+        if (shouldSkipDuplicateAdd("text:" + preset.label)) {
+          return;
+        }
+        const maxZ = state.layers.reduce((acc, layer) => Math.max(acc, layer.z), 20);
+        const layer = normalizeLayer({
+          type: "text",
+          label: preset.label,
+          text: preset.text,
+          x: preset.x,
+          y: preset.y,
+          w: preset.w,
+          rot: 0,
+          z: maxZ + 1,
+          visible: true,
+          fontSize: preset.fontSize,
+          lineHeight: preset.lineHeight,
+          letterSpacing: preset.letterSpacing,
+          color: preset.color,
+          family: preset.family,
+          weight: preset.weight,
+          transform: preset.transform
+        });
+        state.layers.push(layer);
+        state.selectedId = layer.id;
+        persistCurrent();
+        renderAll();
+        setStatus("Added text block " + preset.label + ".");
+      }
+
+      function renderStage() {
+        stage.innerHTML = "";
+        window.EDITOR_DATA.sections.forEach((section) => {
+          const node = document.createElement("div");
+          node.className = "section";
+          node.style.top = section.y0 + "px";
+          node.style.height = (section.y1 - section.y0) + "px";
+          node.style.background = section.color;
+          const label = document.createElement("div");
+          label.className = "section-label";
+          label.textContent = section.label;
+          node.appendChild(label);
+          stage.appendChild(node);
+        });
+
+        [
+          { x: comfortGuideX, width: comfortGuideWidth, label: "Desktop Comfort" },
+          { x: desktopGuideX, width: desktopGuideWidth, label: "Desktop Safe" }
+        ].forEach((guide) => {
+          const node = document.createElement("div");
+          node.className = "guide-box";
+          node.style.left = guide.x + "px";
+          node.style.width = guide.width + "px";
+          node.dataset.label = guide.label;
+          stage.appendChild(node);
+        });
+
+        const sorted = [...state.layers].sort((a, b) => a.z - b.z);
+        sorted.forEach((layer) => {
+          const node = document.createElement("div");
+          node.className = "layer" + (layer.visible ? "" : " hidden") + (layer.id === state.selectedId ? " selected" : "");
+          node.style.left = layer.x + "px";
+          node.style.top = layer.y + "px";
+          node.style.width = layer.size + "px";
+          node.style.zIndex = layer.z;
+          node.style.transform = "rotate(" + layer.rot + "deg)";
+          node.dataset.layerId = String(layer.id);
+
+          if (layer.type === "text") {
+            node.classList.add("text-layer");
+            const textNode = document.createElement("div");
+            textNode.className = "text-node";
+            textNode.innerHTML = escapeHtml(layer.text).replaceAll("\n", "<br>");
+            textNode.style.fontSize = layer.fontSize + "px";
+            textNode.style.lineHeight = String(layer.lineHeight);
+            textNode.style.letterSpacing = layer.letterSpacing + "px";
+            textNode.style.color = layer.color;
+            textNode.style.fontFamily = layer.family;
+            textNode.style.fontWeight = String(layer.weight);
+            textNode.style.textTransform = layer.transform;
+            node.appendChild(textNode);
+          } else {
+            const image = document.createElement("img");
+            image.src = layer.srcData || assetSrc(layer.file);
+            image.alt = layerName(layer);
+            node.appendChild(image);
+          }
+
+          node.addEventListener("pointerdown", (event) => beginDrag(event, layer.id, "move"));
+          node.addEventListener("click", () => {
+            state.selectedId = layer.id;
+            renderInspector();
+            renderStage();
+          });
+
+          if (layer.id === state.selectedId) {
+            const rotateHandle = document.createElement("div");
+            rotateHandle.className = "handle rotate";
+            rotateHandle.addEventListener("pointerdown", (event) => beginDrag(event, layer.id, "rotate"));
+            node.appendChild(rotateHandle);
+
+            const resizeHandle = document.createElement("div");
+            resizeHandle.className = "handle resize";
+            resizeHandle.addEventListener("pointerdown", (event) => beginDrag(event, layer.id, "resize"));
+            node.appendChild(resizeHandle);
+          }
+
+          stage.appendChild(node);
+        });
+      }
+
+      function beginDrag(event, layerId, mode) {
+        event.preventDefault();
+        event.stopPropagation();
+        const layer = state.layers.find((item) => item.id === layerId);
+        if (!layer) {
+          return;
+        }
+        state.selectedId = layerId;
+        const rect = stage.getBoundingClientRect();
+        const centerX = layer.x + layer.size / 2;
+        const node = [...stage.querySelectorAll(".layer")].find((item) => Number(item.dataset.layerId) === layerId);
+        const centerY = node ? layer.y + node.offsetHeight / 2 : layer.y;
+        state.drag = {
+          mode,
+          id: layerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          originX: layer.x,
+          originY: layer.y,
+          originSize: layer.size,
+          originRot: layer.rot,
+          centerX: rect.left + centerX,
+          centerY: rect.top + centerY
+        };
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", endDrag, { once: true });
+        renderInspector();
+        renderStage();
+      }
+
+      function onPointerMove(event) {
+        if (!state.drag) {
+          return;
+        }
+        const layer = currentLayer();
+        if (!layer) {
+          return;
+        }
+        const dx = event.clientX - state.drag.startX;
+        const dy = event.clientY - state.drag.startY;
+
+        if (state.drag.mode === "move") {
+          layer.x = Math.round(state.drag.originX + dx);
+          layer.y = Math.round(state.drag.originY + dy);
+        } else if (state.drag.mode === "resize") {
+          layer.size = Math.max(40, Math.round(state.drag.originSize + dx));
+        } else if (state.drag.mode === "rotate") {
+          const angle = Math.atan2(event.clientY - state.drag.centerY, event.clientX - state.drag.centerX) * 180 / Math.PI;
+          const startAngle = Math.atan2(state.drag.startY - state.drag.centerY, state.drag.startX - state.drag.centerX) * 180 / Math.PI;
+          layer.rot = Math.round((state.drag.originRot + (angle - startAngle)) * 10) / 10;
+        }
+
+        persistCurrent();
+        renderInspector();
+        renderStage();
+      }
+
+      function endDrag() {
+        state.drag = null;
+        window.removeEventListener("pointermove", onPointerMove);
+      }
+
+      function renderInspector() {
+        const layer = currentLayer();
+        const fields = {
+          file: document.getElementById("sel-file"),
+          text: document.getElementById("sel-text"),
+          x: document.getElementById("sel-x"),
+          y: document.getElementById("sel-y"),
+          size: document.getElementById("sel-size"),
+          rot: document.getElementById("sel-rot"),
+          z: document.getElementById("sel-z"),
+          fontSize: document.getElementById("sel-font-size"),
+          lineHeight: document.getElementById("sel-line-height"),
+          letterSpacing: document.getElementById("sel-letter-spacing"),
+          color: document.getElementById("sel-color")
+        };
+        if (!layer) {
+          Object.values(fields).forEach((field) => { field.value = ""; });
+          return;
+        }
+        fields.file.value = layerName(layer);
+        fields.text.value = layer.type === "text" ? layer.text : "";
+        fields.text.disabled = layer.type !== "text";
+        fields.x.value = Math.round(layer.x);
+        fields.y.value = Math.round(layer.y);
+        fields.size.value = Math.round(layer.size);
+        fields.rot.value = layer.rot;
+        fields.z.value = Math.round(layer.z);
+        fields.fontSize.value = layer.type === "text" ? Math.round(layer.fontSize) : "";
+        fields.lineHeight.value = layer.type === "text" ? layer.lineHeight : "";
+        fields.letterSpacing.value = layer.type === "text" ? layer.letterSpacing : "";
+        fields.color.value = layer.type === "text" ? layer.color : "";
+        fields.fontSize.disabled = layer.type !== "text";
+        fields.lineHeight.disabled = layer.type !== "text";
+        fields.letterSpacing.disabled = layer.type !== "text";
+        fields.color.disabled = layer.type !== "text";
+      }
+
+      function updateSelectionField(key, value) {
+        const layer = currentLayer();
+        if (!layer) {
+          return;
+        }
+        layer[key] = value;
+        persistCurrent();
+        renderInspector();
+        renderStage();
+      }
+
+      function selectParam(key) {
+        state.activeParam = key;
+        paramButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.param === key);
+        });
+        setStatus("Active parameter: " + key.toUpperCase());
+      }
+
+      function applyParamDelta(ticks, fast) {
+        const layer = currentLayer();
+        if (!layer) {
+          return;
+        }
+        const multiplier = fast ? 4 : 1;
+        const stepMap = { x: 12, y: 12, size: 18, rot: 1.4, z: 1 };
+        const step = stepMap[state.activeParam] || 1;
+        if (state.activeParam === "x" || state.activeParam === "y") {
+          layer[state.activeParam] = Math.round(layer[state.activeParam] + ticks * step * multiplier);
+        } else if (state.activeParam === "size") {
+          layer.size = Math.max(40, Math.round(layer.size + ticks * step * multiplier));
+        } else if (state.activeParam === "rot") {
+          layer.rot = Math.round((layer.rot + ticks * step * multiplier) * 10) / 10;
+        } else if (state.activeParam === "z") {
+          layer.z = Math.max(1, Math.round(layer.z + ticks * step * multiplier));
+        }
+        persistCurrent();
+        renderInspector();
+        renderStage();
+      }
+
+      function downloadFile(name, text, type) {
+        const blob = new Blob([text], { type });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = name;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 500);
+      }
+
+      function htmlExport() {
+        const sections = window.EDITOR_DATA.sections.map((section) =>
+          '<div class="section" style="top:' + section.y0 + 'px;height:' + (section.y1 - section.y0) + 'px;background:' + section.color + ';"></div>'
+        ).join("\n    ");
+
+        const layers = [...state.layers].sort((a, b) => a.z - b.z).filter((layer) => layer.visible).map((layer) =>
+          layer.type === "text"
+            ? '<div class="layer text-layer" style="left:' + Math.round(layer.x) + 'px;top:' + Math.round(layer.y) + 'px;width:' + Math.round(layer.size) + 'px;transform:rotate(' + layer.rot + 'deg);z-index:' + Math.round(layer.z) + ';font-size:' + Math.round(layer.fontSize) + 'px;line-height:' + layer.lineHeight + ';letter-spacing:' + layer.letterSpacing + 'px;color:' + layer.color + ';font-family:' + layer.family + ';font-weight:' + layer.weight + ';text-transform:' + layer.transform + ';">' + escapeHtml(layer.text).replaceAll("\n", "<br>") + '</div>'
+            : '<img class="layer" src="' + (layer.srcData || assetSrc(layer.file)) + '" alt="' + layerName(layer) + '" style="left:' + Math.round(layer.x) + 'px;top:' + Math.round(layer.y) + 'px;width:' + Math.round(layer.size) + 'px;transform:rotate(' + layer.rot + 'deg);z-index:' + Math.round(layer.z) + ';">'
+        ).join("\n    ");
+
+        return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Zelda Design Co. Collage</title>\n<style>\n:root{--canvas-w:1440px;--canvas-h:3900px}*{box-sizing:border-box}body{margin:0;background:#111;display:flex;justify-content:center;padding:24px 0;font-family:Georgia,serif}.canvas{position:relative;width:var(--canvas-w);height:var(--canvas-h);overflow:hidden;background:#f7f3ec;box-shadow:0 24px 70px rgba(0,0,0,.35)}.section{position:absolute;left:0;width:100%}.layer{position:absolute;height:auto;transform-origin:center center;user-select:none;-webkit-user-drag:none}.layer:not(.text-layer){box-shadow:8px 14px 24px rgba(0,0,0,.35)}.text-layer{white-space:pre-wrap;text-wrap:balance}@media (max-width:1500px){.canvas{width:min(96vw,var(--canvas-w));height:auto;aspect-ratio:1440/3900}}</style>\n</head>\n<body>\n<main class="canvas">\n    ' + sections + '\n    ' + layers + '\n</main>\n</body>\n</html>\n';
+      }
+
+      function importFromFile(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            state.layers = parsed.map(normalizeLayer);
+            state.selectedId = state.layers[0] ? state.layers[0].id : null;
+            persistCurrent();
+            renderAll();
+            setStatus("Imported layout JSON.");
+          } catch (error) {
+            setStatus("Import failed: invalid JSON.");
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function bindControls() {
+        document.getElementById("zoom-out").addEventListener("click", () => setZoom(state.zoom - 0.1));
+        document.getElementById("zoom-in").addEventListener("click", () => setZoom(state.zoom + 0.1));
+        document.getElementById("zoom-100").addEventListener("click", () => setZoom(1));
+        document.getElementById("zoom-fit").addEventListener("click", fitZoom);
+
+        paramButtons.forEach((button) => {
+          button.addEventListener("click", () => selectParam(button.dataset.param));
+        });
+
+        document.getElementById("toggle-visible").addEventListener("click", () => {
+          const layer = currentLayer();
+          if (!layer) {
+            return;
+          }
+          layer.visible = !layer.visible;
+          persistCurrent();
+          renderStage();
+          setStatus((layer.visible ? "Showed " : "Hid ") + layerName(layer) + ".");
+        });
+
+        document.getElementById("delete-layer").addEventListener("click", () => {
+          if (!currentLayer()) {
+            return;
+          }
+          state.layers = state.layers.filter((layer) => layer.id !== state.selectedId);
+          state.selectedId = state.layers[0] ? state.layers[0].id : null;
+          persistCurrent();
+          renderAll();
+          setStatus("Layer deleted.");
+        });
+
+        [["sel-x", "x"], ["sel-y", "y"], ["sel-size", "size"], ["sel-rot", "rot"], ["sel-z", "z"], ["sel-font-size", "fontSize"], ["sel-line-height", "lineHeight"], ["sel-letter-spacing", "letterSpacing"]].forEach(([id, key]) => {
+          document.getElementById(id).addEventListener("input", (event) => {
+            const value = Number(event.target.value);
+            if (!Number.isFinite(value)) {
+              return;
+            }
+            updateSelectionField(key, key === "size" ? Math.max(40, value) : value);
+          });
+        });
+        document.getElementById("sel-text").addEventListener("input", (event) => {
+          updateSelectionField("text", event.target.value);
+        });
+        document.getElementById("sel-color").addEventListener("input", (event) => {
+          updateSelectionField("color", event.target.value);
+        });
+
+        document.getElementById("download-json").addEventListener("click", () => {
+          downloadFile("layout.json", JSON.stringify(serializableLayers(), null, 2), "application/json");
+        });
+
+        document.getElementById("download-html").addEventListener("click", () => {
+          downloadFile("index.html", htmlExport(), "text/html");
+        });
+
+        document.getElementById("save-snapshot").addEventListener("click", saveSnapshot);
+        document.getElementById("remove-duplicates").addEventListener("click", removeDuplicates);
+
+        document.getElementById("reset-layout").addEventListener("click", () => {
+          localStorage.removeItem(STORAGE_KEY);
+          state.layers = window.EDITOR_DATA.layout.map(normalizeLayer);
+          state.selectedId = state.layers[0] ? state.layers[0].id : null;
+          persistCurrent();
+          renderAll();
+          setStatus("Reset to embedded starting layout.");
+        });
+
+        const importInput = document.getElementById("import-file");
+        const localImageInput = document.getElementById("local-image-input");
+        document.getElementById("import-json").addEventListener("click", () => importInput.click());
+        document.getElementById("add-local-image").addEventListener("click", () => localImageInput.click());
+        importInput.addEventListener("change", () => {
+          if (importInput.files && importInput.files[0]) {
+            importFromFile(importInput.files[0]);
+            importInput.value = "";
+          }
+        });
+        localImageInput.addEventListener("change", () => {
+          const files = [...(localImageInput.files || [])];
+          files.forEach((file) => {
+            const reader = new FileReader();
+            reader.onload = () => addLocalImage(file, String(reader.result));
+            reader.readAsDataURL(file);
+          });
+          localImageInput.value = "";
+        });
+
+        stage.addEventListener("click", (event) => {
+          if (event.target === stage) {
+            state.selectedId = null;
+            renderInspector();
+            renderStage();
+          }
+        });
+
+        window.addEventListener("keydown", (event) => {
+          if (event.target && /input|textarea|select/i.test(event.target.tagName)) {
+            return;
+          }
+          if (!currentLayer()) {
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            applyParamDelta(1, event.shiftKey);
+            event.preventDefault();
+          } else if (event.key === "ArrowDown") {
+            applyParamDelta(-1, event.shiftKey);
+            event.preventDefault();
+          } else if (event.key === "ArrowLeft") {
+            updateSelectionField("x", Math.round(currentLayer().x - (event.shiftKey ? 30 : 8)));
+            event.preventDefault();
+          } else if (event.key === "ArrowRight") {
+            updateSelectionField("x", Math.round(currentLayer().x + (event.shiftKey ? 30 : 8)));
+            event.preventDefault();
+          } else if (event.key === "[") {
+            updateSelectionField("rot", Math.round((currentLayer().rot - 1) * 10) / 10);
+            event.preventDefault();
+          } else if (event.key === "]") {
+            updateSelectionField("rot", Math.round((currentLayer().rot + 1) * 10) / 10);
+            event.preventDefault();
+          } else if (event.key === "-" || event.key === "_") {
+            updateSelectionField("size", Math.max(40, Math.round(currentLayer().size - 18)));
+            event.preventDefault();
+          } else if (event.key === "=" || event.key === "+") {
+            updateSelectionField("size", Math.round(currentLayer().size + 18));
+            event.preventDefault();
+          } else if (event.key === "PageUp") {
+            updateSelectionField("z", Math.round(currentLayer().z + 1));
+            event.preventDefault();
+          } else if (event.key === "PageDown") {
+            updateSelectionField("z", Math.max(1, Math.round(currentLayer().z - 1)));
+            event.preventDefault();
+          }
+        });
+
+      }
+
+      function renderAll() {
+        applyZoom();
+        renderAssets();
+        renderTextPresets();
+        renderLayerList();
+        renderSnapshots();
+        renderInspector();
+        renderStage();
+        selectParam(state.activeParam);
+      }
+
+      state.selectedId = state.layers[0] ? state.layers[0].id : null;
+      bindControls();
+      persistCurrent();
+      renderAll();
+      fitZoom();
+      setStatus("Ready. Drag layers directly on the stage.");
+    })();
+  </script>
+</body>
+</html>
